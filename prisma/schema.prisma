@@ -1,0 +1,85 @@
+// sellerbricks-bot 전용 DB (셀러브릭스·스튜디오 DB 와 완전히 별개)
+// 지금은 SQLite. 나중에 PostgreSQL/MySQL 로 바꿀 때는 provider 와 DATABASE_URL 만 바꾸고 db push.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 관리자 설정 (AI 선택, 암호화된 API 키, 플랫폼 연결 설정 등) — key/value
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// 카카오 채널 사용자 (오픈빌더 botUserKey 기준)
+model BotUser {
+  id         String         @id @default(cuid())
+  botUserKey String         @unique
+  createdAt  DateTime       @default(now())
+  lastSeenAt DateTime       @default(now())
+  links      PlatformLink[]
+  chats      ChatLog[]
+}
+
+// 챗봇 사용자 ↔ 플랫폼 계정 연결 (셀러브릭스 / 스튜디오 각각 선택적)
+model PlatformLink {
+  id          String   @id @default(cuid())
+  botUserId   String
+  botUser     BotUser  @relation(fields: [botUserId], references: [id], onDelete: Cascade)
+  platform    String // SELLERBRICKS | STUDIO
+  accountId   String
+  accountName String
+  linkToken   String // 플랫폼이 발급한 셀러별 연결 토큰 (암호화 저장)
+  createdAt   DateTime @default(now())
+
+  @@unique([botUserId, platform])
+}
+
+// 가짜 플랫폼 전용 — 관리자 화면에서 발급하는 테스트 연결 코드
+model MockLinkCode {
+  code        String   @id
+  platform    String
+  accountId   String
+  accountName String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}
+
+// 대화 로그 (개인정보 가림 처리 후 저장)
+model ChatLog {
+  id        String        @id @default(cuid())
+  botUserId String?
+  botUser   BotUser?      @relation(fields: [botUserId], references: [id], onDelete: SetNull)
+  channel   String // KAKAO | TEST
+  userText  String
+  replyText String
+  provider  String // CLAUDE | GPT | MOCK | SYSTEM
+  model     String?
+  latencyMs Int           @default(0)
+  tokensIn  Int           @default(0)
+  tokensOut Int           @default(0)
+  error     String?
+  createdAt DateTime      @default(now())
+  tools     ToolCallLog[]
+
+  @@index([createdAt])
+}
+
+// 도구 호출 로그
+model ToolCallLog {
+  id        String   @id @default(cuid())
+  chatLogId String
+  chatLog   ChatLog  @relation(fields: [chatLogId], references: [id], onDelete: Cascade)
+  tool      String
+  argsJson  String
+  ok        Boolean
+  ms        Int
+  error     String?
+  createdAt DateTime @default(now())
+}

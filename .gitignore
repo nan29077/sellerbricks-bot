@@ -1,0 +1,19 @@
+# 비밀값 — 절대 커밋 금지
+.env
+.env.*
+!.env.example
+
+# 의존성·빌드 산출물
+node_modules/
+dist/
+
+# 로컬 DB·비밀키 파일
+data/
+*.db
+*.db-journal
+
+# 로그·OS 파일
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
