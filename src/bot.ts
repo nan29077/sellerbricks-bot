@@ -51,8 +51,8 @@ const helpText = (view: ChannelView) =>
 
 const linkHowto = (view: ChannelView) =>
   view === 'WEB'
-    ? '계정 연결 방법\n1. 셀러브릭스(또는 스튜디오) 셀러 관리자 화면 접속\n2. "AI 셀러 비서" 메뉴에서 6자리 코드 받기 (5분 유효)\n3. 오른쪽 위 메뉴 → 연결 계정 → 코드 입력\n\n여기에 "연결 123456" 처럼 보내도 돼요. 스튜디오는 "스튜디오 연결 123456"'
-    : '계정 연결 방법\n1. 셀러브릭스 셀러 관리자 화면 접속\n2. "AI 셀러 비서" 메뉴에서 6자리 코드 받기 (5분 유효)\n3. 이 채팅방에 "연결 123456" 처럼 보내기\n\n스튜디오 계정은 "스튜디오 연결 123456" 으로 연결해요.';
+    ? '계정 연결 방법\n1. 셀러브릭스(또는 스토리지 마켓) 셀러 관리자 화면 접속\n2. "AI 셀러 비서" 메뉴에서 6자리 코드 받기 (5분 유효)\n3. 오른쪽 위 메뉴 → 연결 계정 → 코드 입력\n\n여기에 "연결 123456" 처럼 보내도 돼요. 스토리지 마켓은 "스토리지마켓 연결 123456"'
+    : '계정 연결 방법\n1. 셀러브릭스 셀러 관리자 화면 접속\n2. "AI 셀러 비서" 메뉴에서 6자리 코드 받기 (5분 유효)\n3. 이 채팅방에 "연결 123456" 처럼 보내기\n\n스토리지 마켓 계정은 "스토리지마켓 연결 123456" 으로 연결해요.';
 
 const POSITIVE_FEEDBACK = '도움 됨';
 const NEGATIVE_FEEDBACK = '아쉬워요';
@@ -63,8 +63,8 @@ export const RESULT_CHECK = '결과 보기';
 export function isInstantCommand(text: string): boolean {
   const t = text.replace(/\s+/g, ' ').trim();
   return (
-    /^(스튜디오\s*)?연결\s*\d{6}$/.test(t) ||
-    /^(셀러브릭스\s*|스튜디오\s*)?연결\s*해제$/.test(t) ||
+    /^(스토리지\s*마켓\s*|스튜디오\s*)?연결\s*\d{6}$/.test(t) ||
+    /^(셀러브릭스\s*|스토리지\s*마켓\s*|스튜디오\s*)?연결\s*해제$/.test(t) ||
     /^(연결\s*(상태|확인)|내\s*계정)$/.test(t) ||
     /^(도움말|help|시작|메뉴|\?)$/i.test(t) ||
     /^연결\s*방법$/.test(t) ||
@@ -75,10 +75,10 @@ export function isInstantCommand(text: string): boolean {
 
 async function runCommand(botUserId: string, botUserKey: string, text: string, view: ChannelView): Promise<AgentOutput | null> {
   const t = text.replace(/\s+/g, ' ').trim();
-  let m = t.match(/^(스튜디오\s*)?연결\s*(\d{6})$/);
+  let m = t.match(/^(스토리지\s*마켓\s*|스튜디오\s*)?연결\s*(\d{6})$/);
   if (m) return system(await linkAccount(botUserId, botUserKey, m[1] ? 'STUDIO' : 'SELLERBRICKS', m[2]));
-  m = t.match(/^(셀러브릭스\s*|스튜디오\s*)?연결\s*해제$/);
-  if (m) return system(await unlinkAccount(botUserId, m[1]?.startsWith('스튜디오') ? 'STUDIO' : m[1] ? 'SELLERBRICKS' : undefined), ['연결 방법', '도움말']);
+  m = t.match(/^(셀러브릭스\s*|스토리지\s*마켓\s*|스튜디오\s*)?연결\s*해제$/);
+  if (m) return system(await unlinkAccount(botUserId, /^(스토리지|스튜디오)/.test(m[1] ?? '') ? 'STUDIO' : m[1] ? 'SELLERBRICKS' : undefined), ['연결 방법', '도움말']);
   if (/^(연결\s*(상태|확인)|내\s*계정)$/.test(t)) return system(await linkStatusText(botUserId));
   if (/^연결\s*방법$/.test(t)) return system(linkHowto(view), ['도움말']);
   if (/^(도움말|help|시작|메뉴|\?)$/i.test(t)) return system(helpText(view));

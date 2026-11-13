@@ -67,7 +67,7 @@ export async function execTool(name: string, args: Record<string, unknown>, ctx:
 export function friendlyError(e: unknown): string {
   if (e instanceof PlatformError) {
     if (e.code === 'UNAUTHORIZED' || e.code === 'LINK_INVALID') return '계정 연결이 끊어졌어요. 셀러 관리자 화면 "AI 셀러 비서" 메뉴에서 새 6자리 코드를 받아 다시 연결해 주세요.';
-    if (e.code === 'UNAVAILABLE') return e.message.includes('스튜디오') ? e.message : '지금 셀러브릭스 서버 응답이 없어요. 잠시 후 다시 시도해 주세요.';
+    if (e.code === 'UNAVAILABLE') return e.message.includes('스토리지 마켓') ? e.message : '지금 셀러브릭스 서버 응답이 없어요. 잠시 후 다시 시도해 주세요.';
     return e.message;
   }
   const m = e instanceof Error ? e.message : String(e);

@@ -31,7 +31,13 @@ const NEXT_SUGGESTIONS: Record<string, string[]> = {
   write_content: ['SNS 홍보문 써줘', '해시태그 추천해줘'],
   search_help: ['오늘 주문 정리', '도움말'],
   set_preference: ['송장 안 넣은 주문', '도움말'],
+  studio_search_facilities: ['내일 성수 스튜디오 빈 시간', '창고 찾기', '내 스토리지 마켓 예약'],
+  studio_availability: ['다른 날짜 보기', '비슷한 스튜디오 찾기', '내 스토리지 마켓 예약'],
+  studio_my_bookings: ['승인 대기 예약', '지난 예약', '스튜디오 빈 시간 찾기'],
+  studio_order_summary: ['이번 달 스토리지 마켓 주문', '내 스토리지 마켓 예약'],
 };
+/** 스토리지 마켓만 연결한 셀러의 기본 바로가기 */
+export const STUDIO_QUICK = ['수요일 화장품 방송 가능한 스튜디오', '내 스토리지 마켓 예약', '이번 달 스토리지 마켓 주문', '도움말'];
 export const DEFAULT_QUICK = ['오늘 주문 정리', '입금 안 된 주문', '송장 안 넣은 주문', '이번 달 정산', '도움말'];
 
 function systemPrompt(ctx: ToolContext): string {
@@ -42,14 +48,14 @@ function systemPrompt(ctx: ToolContext): string {
   const prof = profileOf(ctx.channel && ctx.channel !== 'MCP' ? ctx.channel : 'KAKAO', ctx.view);
   const where = prof.view === 'WEB' ? (ctx.channel === 'APP' ? '앱' : '웹챗') : '카카오톡';
   return [
-    `너는 라이브커머스 플랫폼 "셀러브릭스"(와 셀러브릭스 스튜디오)의 셀러 전용 AI 비서야. 지금 대화하는 곳은 ${where}이야.`,
+    `너는 라이브커머스 플랫폼 "셀러브릭스"와 스튜디오·창고 예약 플랫폼 "스토리지 마켓"의 셀러 전용 AI 비서야. 지금 대화하는 곳은 ${where}이야.`,
     `지금은 한국 시간 ${p.y}년 ${fmtDateTime(now)} (${wd}요일)이고, 이번 주는 ${periodOf('this_week', now).label} 이야.`,
     `이 셀러가 연결한 계정: ${linked || '없음'}.`,
     '',
     '규칙:',
     '1. 숫자·주문·금액은 반드시 도구를 호출해서 얻은 값만 말해. 추측하거나 지어내지 마.',
     '2. 정산·수수료·출금 금액은 도구가 준 값을 그대로 써. 직접 다시 계산하지 마.',
-    '3. 셀러브릭스 주문서(계좌/카드)와 일반 주문은 합치지 말고 나눠서 말해. 스튜디오 주문도 별도야.',
+    '3. 셀러브릭스 주문서(계좌/카드)와 일반 주문은 합치지 말고 나눠서 말해. 스토리지 마켓 주문도 별도야.',
     prof.markdown
       ? `4. 화면에 간단한 마크다운(**굵게**, - 목록, 짧은 표)을 쓸 수 있어. 제목(#)과 이모지는 쓰지 마. ${prof.replyChars}자 이내로 핵심부터.`
       : `4. 카카오톡 말풍선에 맞게 짧은 줄바꿈을 쓰고 마크다운(**, #, 표)과 이모지를 생략해. ${prof.replyChars}자 이내로 핵심부터.`,
@@ -66,7 +72,7 @@ function systemPrompt(ctx: ToolContext): string {
     '15. 사진으로 상품 등록은 셀러가 사진과 함께 "간편 상품 등록해줘"라고 보내면 된다고 안내해.',
     ctx.prefs.answer_style === 'detailed' ? '16. 이 셀러는 자세한 답변을 원해.' : ctx.prefs.answer_style === 'short' ? '16. 이 셀러는 아주 짧은 답변을 원해(3~5줄).' : '',
     ctx.prefs.unshipped_delay_days ? `17. 이 셀러의 송장 지연 기준은 ${ctx.prefs.unshipped_delay_days}일이야.` : '',
-    '18. 스튜디오(시설 찾기·예약 가능 시간·내 예약·스튜디오 주문) 질문은 studio_ 도구를 써. 요일만 말하면 가장 가까운 그 요일로 보고, 예약 자체는 스튜디오 화면에서 하도록 버튼으로 안내해.',
+    '18. 스토리지 마켓(스튜디오·창고 찾기·예약 가능 시간·내 예약·스토리지 마켓 주문) 질문은 studio_ 도구를 써. 플랫폼 이름은 항상 "스토리지 마켓"으로 말해(옛 이름 셀러브릭스 스튜디오는 쓰지 마). 요일만 말하면 가장 가까운 그 요일로 보고, 예약 자체는 스토리지 마켓 화면에서 하도록 버튼으로 안내해.',
   ].filter(Boolean).join('\n');
 }
 
@@ -201,7 +207,7 @@ export async function runAgent(input: AgentInput): Promise<AgentOutput> {
     card: lastResult?.card,
     link: lastLink,
     checkWarn,
-    quickReplies: NEXT_SUGGESTIONS[lastTool] ?? DEFAULT_QUICK,
+    quickReplies: NEXT_SUGGESTIONS[lastTool] ?? (ctx.links.SELLERBRICKS ? DEFAULT_QUICK : STUDIO_QUICK),
     provider: provider.name,
     model,
     tokensIn: result.tokensIn,

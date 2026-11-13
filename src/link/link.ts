@@ -31,7 +31,7 @@ export type VerifyResult = { ok: true; accountId: string; accountName: string; l
 
 /** 6자리 코드 검증만 (저장은 하지 않음) */
 export async function verifyCode(platform: PlatformKey, code: string, botUserKey: string): Promise<VerifyResult> {
-  if (!(await isPlatformEnabled(platform))) return { ok: false, message: platform === 'STUDIO' ? '셀러브릭스 스튜디오 연결은 스튜디오 실서버 배포 후 열릴 예정이에요.' : '지금은 셀러브릭스 연결을 사용할 수 없어요.' };
+  if (!(await isPlatformEnabled(platform))) return { ok: false, message: platform === 'STUDIO' ? '스토리지 마켓 연결은 스토리지 마켓 실서버 배포 후 열릴 예정이에요.' : '지금은 셀러브릭스 연결을 사용할 수 없어요.' };
   try {
     const r = await (await linkClient(platform)).verifyLink(code, botUserKey);
     return { ok: true, ...r };
@@ -91,7 +91,7 @@ export async function linkStatusText(botUserId: string): Promise<string> {
   const sb = rows.find((r) => r.platform === 'SELLERBRICKS');
   const st = rows.find((r) => r.platform === 'STUDIO');
   const studioOpen = await isPlatformEnabled('STUDIO');
-  return ['연결 상태', `셀러브릭스: ${sb ? `연결됨 (${sb.accountName})` : '연결 안 됨'}`, `셀러브릭스 스튜디오: ${st ? `연결됨 (${st.accountName})` : studioOpen ? '연결 안 됨' : '연결 안 됨 (배포 후 오픈 예정)'}`].join('\n');
+  return ['연결 상태', `셀러브릭스: ${sb ? `연결됨 (${sb.accountName})` : '연결 안 됨'}`, `스토리지 마켓: ${st ? `연결됨 (${st.accountName})` : studioOpen ? '연결 안 됨' : '연결 안 됨 (배포 후 오픈 예정)'}`].join('\n');
 }
 
 /** 가짜 플랫폼용 연결 코드 발급 (관리자 화면 테스트) */

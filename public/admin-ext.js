@@ -1,4 +1,4 @@
-// 관리자 화면 추가 기능 — 채널·앱 · 스튜디오 연결 · 운영·알림 · 외부 AI(MCP)
+// 관리자 화면 추가 기능 — 채널·앱 · 스토리지 마켓 연결 · 운영·알림 · 외부 AI(MCP)
 // admin.js 의 api(), table(), escapeHtml(), feedback(), $ 를 그대로 쓴다. (admin.js 다음에 로드)
 (() => {
   'use strict';
@@ -15,7 +15,7 @@
     try { await navigator.clipboard.writeText(text); feedback(msgEl, '복사했습니다.'); } catch { feedback(msgEl, '복사하지 못했습니다. 직접 선택해 복사하세요.', true); }
   }
 
-  // ── 스튜디오 연결 ───────────────────────────────
+  // ── 스토리지 마켓(옛 스튜디오) 연결 ───────────────────────────────
   async function loadStudio() {
     const s = await api('/state');
     const st = s.platforms.studio;

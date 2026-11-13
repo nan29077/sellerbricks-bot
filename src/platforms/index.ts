@@ -10,7 +10,7 @@ export type PlatformKey = 'SELLERBRICKS' | 'STUDIO';
 
 export const PLATFORM_LABEL: Record<PlatformKey, string> = {
   SELLERBRICKS: '셀러브릭스',
-  STUDIO: '셀러브릭스 스튜디오',
+  STUDIO: '스토리지 마켓', // 옛 이름: 셀러브릭스 스튜디오 (내부 키는 STUDIO 유지)
 };
 
 const mock = new MockSellerbricksApi();
@@ -24,11 +24,11 @@ export async function sellerbricksApi(): Promise<SellerbricksApi> {
   return mock;
 }
 
-/** 스튜디오 클라이언트 — 기본은 꺼짐. 배포 전에는 가짜(MOCK)로 시험, 배포 후 실제(LIVE) */
+/** 스토리지 마켓(옛 셀러브릭스 스튜디오) 클라이언트 — 기본은 꺼짐. 배포 전에는 가짜(MOCK)로 시험, 배포 후 실제(LIVE) */
 export async function studioApi(): Promise<StudioApi> {
   const s = await getPlatformSettings('studio');
   if (s.mode === 'LIVE') return new HttpStudioApi(s.baseUrl, s.signingKey);
-  if (s.mode === 'OFF') throw new PlatformError('UNAVAILABLE', '스튜디오 연결은 아직 열리지 않았어요.');
+  if (s.mode === 'OFF') throw new PlatformError('UNAVAILABLE', '스토리지 마켓 연결은 아직 열리지 않았어요.');
   return studioMock;
 }
 

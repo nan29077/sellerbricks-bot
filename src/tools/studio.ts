@@ -1,5 +1,5 @@
-// 셀러브릭스 스튜디오 도구 (읽기 전용) — 시설 검색·예약 가능 시간·내 예약·스튜디오 주문
-// 스튜디오 주문은 셀러브릭스 주문과 독립 — 합산하지 않고 [스튜디오 주문]으로 따로 표시한다.
+// 스토리지 마켓(옛 셀러브릭스 스튜디오) 도구 (읽기 전용) — 시설 검색·예약 가능 시간·내 예약·스튜디오 주문
+// 스토리지 마켓 주문은 셀러브릭스 주문과 독립 — 합산하지 않고 [스토리지 마켓 주문]으로 따로 표시한다.
 import { fmtDate, kstDate, kstParts, kstStartOfDay, type PeriodKey, PERIOD_KEYS, periodOf, won } from '../lib/time.js';
 import { studioApi } from '../platforms/index.js';
 import type { BookingStatus, FacilityType } from '../platforms/studio/types.js';
@@ -50,7 +50,7 @@ export const studioTools: BotTool[] = [
   {
     name: 'studio_search_facilities',
     title: '스튜디오·창고 찾기',
-    description: '셀러브릭스 스튜디오에 등록된 라이브 스튜디오·물류 창고를 찾는다. 유형(STUDIO/WAREHOUSE)·지역·품목(의류·코스메틱·식품·생활용품·잡화)·날짜·시작 시각·이용 시간으로 거르고, 날짜를 주면 그날 예약 가능한 시작 시각을 함께 돌려준다. "수요일 화장품 방송 가능한 스튜디오 추천해줘", "성수 스튜디오 내일 오후 비는 곳" 등에 사용. 이용료는 무료.',
+    description: '스토리지 마켓에 등록된 라이브 스튜디오·물류 창고를 찾는다. 유형(STUDIO/WAREHOUSE)·지역·품목(의류·코스메틱·식품·생활용품·잡화)·날짜·시작 시각·이용 시간으로 거르고, 날짜를 주면 그날 예약 가능한 시작 시각을 함께 돌려준다. "수요일 화장품 방송 가능한 스튜디오 추천해줘", "성수 스튜디오 내일 오후 비는 곳" 등에 사용. 이용료는 무료.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -89,7 +89,7 @@ export const studioTools: BotTool[] = [
         card: {
           title: date ? `${dayLabel(date)} 예약 가능` : '추천 시설',
           items: r.items.slice(0, 5).map((f) => ({ title: f.name, description: `${f.region} · ${f.specialty.join('·')}${f.freeSlots.length ? ` · ${f.freeSlots[0]}~` : ''}` })),
-          button: { label: '스튜디오 예약하기', url: r.items[0].detailUrl },
+          button: { label: '스토리지 마켓에서 예약', url: r.items[0].detailUrl },
         },
       };
     },
@@ -128,8 +128,8 @@ export const studioTools: BotTool[] = [
   },
   {
     name: 'studio_my_bookings',
-    title: '내 스튜디오 예약',
-    description: '셀러의 스튜디오·창고 예약 목록. scope=upcoming(기본, 오늘부터 30일) / past(지난 30일). status 로 승인 대기(PENDING)·확정(APPROVED) 등만 볼 수 있다.',
+    title: '내 스토리지 마켓 예약',
+    description: '셀러의 스토리지 마켓 예약(스튜디오·창고) 목록. scope=upcoming(기본, 오늘부터 30일) / past(지난 30일). status 로 승인 대기(PENDING)·확정(APPROVED) 등만 볼 수 있다.',
     inputSchema: {
       type: 'object',
       properties: { scope: { type: 'string', enum: ['upcoming', 'past'], default: 'upcoming' }, status: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED', 'NO_SHOW'] } },
@@ -143,9 +143,9 @@ export const studioTools: BotTool[] = [
       const to = past ? today : new Date(today.getTime() + 31 * DAY);
       const status = typeof args.status === 'string' ? (args.status as BookingStatus) : undefined;
       const r = await (await studioApi()).getMyBookings(token(ctx), { from, to, status });
-      if (!r.items.length) return { summary: past ? '지난 30일 스튜디오 예약이 없어요.' : '다가오는 스튜디오 예약이 없어요.', data: r };
+      if (!r.items.length) return { summary: past ? '지난 30일 스토리지 마켓 예약이 없어요.' : '다가오는 스토리지 마켓 예약이 없어요.', data: r };
       return {
-        summary: [`${past ? '지난' : '다가오는'} 스튜디오 예약 ${r.totalCount}건`, ...r.items.slice(0, 8).map((b) => `· ${dayLabel(b.date)} ${b.start}~${b.end} ${b.facilityName} [${b.statusLabel}]`)].join('\n'),
+        summary: [`${past ? '지난' : '다가오는'} 스토리지 마켓 예약 ${r.totalCount}건`, ...r.items.slice(0, 8).map((b) => `· ${dayLabel(b.date)} ${b.start}~${b.end} ${b.facilityName} [${b.statusLabel}]`)].join('\n'),
         data: r,
         card: { title: past ? '지난 예약' : '다가오는 예약', items: r.items.slice(0, 5).map((b) => ({ title: `${dayLabel(b.date)} ${b.start} ${b.facilityName}`, description: b.statusLabel })), button: { label: '예약 관리 열기', url: r.items[0].adminUrl.replace(/\/[^/]+$/, '') } },
       };
@@ -153,8 +153,8 @@ export const studioTools: BotTool[] = [
   },
   {
     name: 'studio_order_summary',
-    title: '스튜디오 주문',
-    description: '셀러브릭스 스튜디오 쪽 주문 집계(건수·금액·결제 완료, 많이 팔린 상품). 셀러브릭스 주문과 별개이므로 합산하지 말고 [스튜디오 주문]으로 따로 말할 것.',
+    title: '스토리지 마켓 주문',
+    description: '스토리지 마켓 쪽 주문 집계(건수·금액·결제 완료, 많이 팔린 상품). 셀러브릭스 주문과 별개이므로 합산하지 말고 [스토리지 마켓 주문]으로 따로 말할 것.',
     inputSchema: { type: 'object', properties: { period: { type: 'string', enum: PERIOD_KEYS, default: 'today' } }, additionalProperties: false },
     platform: 'STUDIO',
     async run(ctx, args) {
@@ -162,7 +162,7 @@ export const studioTools: BotTool[] = [
       const p = periodOf(k, ctx.now);
       const d = await (await studioApi()).getOrderSummary(token(ctx), p.from, p.to);
       return {
-        summary: [`[스튜디오 주문] ${p.label} ${d.orderCount}건 · ${won(d.amount)}`, `  - 결제완료 ${d.paidCount}건 ${won(d.paidAmount)}`, d.topProducts.length ? `  - 많이 팔린 상품: ${d.topProducts.map((x) => `${x.name} ${x.qty}개`).join(', ')}` : ''].filter(Boolean).join('\n'),
+        summary: [`[스토리지 마켓 주문] ${p.label} ${d.orderCount}건 · ${won(d.amount)}`, `  - 결제완료 ${d.paidCount}건 ${won(d.paidAmount)}`, d.topProducts.length ? `  - 많이 팔린 상품: ${d.topProducts.map((x) => `${x.name} ${x.qty}개`).join(', ')}` : ''].filter(Boolean).join('\n'),
         data: { period: p.label, ...d },
       };
     },

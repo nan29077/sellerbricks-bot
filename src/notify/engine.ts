@@ -53,7 +53,7 @@ export async function compose(botUserId: string, kind: NotifyKind, now: Date, pr
     if (st) {
       const t = periodOf('today', now);
       const b = await (await studioApi()).getMyBookings(st, { from: t.from, to: t.to });
-      if (b.items.length) lines.push(`오늘 스튜디오 예약: ${b.items.map((x) => `${x.start} ${x.facilityName}`).join(', ')}`);
+      if (b.items.length) lines.push(`오늘 스토리지 마켓 예약: ${b.items.map((x) => `${x.start} ${x.facilityName}`).join(', ')}`);
     }
     if (!lines.length) return null;
     return { kind, title: '좋은 아침이에요! 오늘의 요약', body: lines.join('\n'), dedupeKey: key(day) };

@@ -193,7 +193,7 @@ export async function adminExtRoutes(api: FastifyInstance) {
       enabled: await isMcpEnabled(),
       endpoint: `${config.publicBaseUrl}/mcp`,
       tokens: tokens.map((t) => ({ id: t.id, prefix: t.prefix, label: t.label, createdAt: t.createdAt, lastUsedAt: t.lastUsedAt, revokedAt: t.revokedAt, accounts: t.botUser.links.map((l) => l.accountName).join(', ') })),
-      users: users.map((u) => ({ id: u.id, channel: u.channel, accounts: u.links.map((l) => `${l.accountName}(${l.platform === 'STUDIO' ? '스튜디오' : '셀러브릭스'})`).join(', ') })),
+      users: users.map((u) => ({ id: u.id, channel: u.channel, accounts: u.links.map((l) => `${l.accountName}(${l.platform === 'STUDIO' ? '스토리지 마켓' : '셀러브릭스'})`).join(', ') })),
     };
   });
   api.post<{ Body: { enabled?: boolean } }>('/admin/api/mcp', async (req) => {

@@ -1,8 +1,8 @@
-# 플랫폼 내부 봇 API 명세 v2 (2026-11-13)
+# 플랫폼 내부 봇 API 명세 v2 (2026-11-13) — 셀러브릭스 · 스토리지 마켓(옛 셀러브릭스 스튜디오)
 
 > v1(기본 조회 11개) + **v2(범용 조회 7개 · 쓰기 4개)**. 셀러브릭스 쪽은 v1 → v2 순서로 만들어도 되고 한 번에 만들어도 된다.
 
-> sellerbricks-bot 이 셀러브릭스(그리고 나중에 스튜디오)에 붙을 때 쓰는 **약속 문서**.
+> sellerbricks-bot 이 셀러브릭스(그리고 나중에 스토리지 마켓)에 붙을 때 쓰는 **약속 문서**.
 > 셀러브릭스 쪽 개발(별도 브랜치)은 이 문서대로 만들면 봇에 바로 연결된다.
 > 봇 쪽 구현: `src/platforms/sellerbricks/http.ts`(호출), `src/platforms/sellerbricks/types.ts`(응답 타입 — **이 파일이 정답**), `src/platforms/sellerbricks/mock.ts`(가짜 구현 = 동작 예시).
 
@@ -136,23 +136,23 @@ model BotLink {                // 연결된 챗봇 사용자
 3. 쓰기 요청은 감사 로그(누가·언제·무엇을)를 남긴다 — 기존 로그 방식 사용.
 4. 응답 `adminUrl` = 셀러 관리자 해당 상품 화면, `shopUrl` = 셀러샵 일반상품 탭 상품 주소(마이샵).
 
-## 9. 스튜디오 (배포 후 셀러브릭스 스튜디오 저장소에 추가) — 3차에서 확정
+## 9. 스토리지 마켓 (옛 셀러브릭스 스튜디오 — 배포 후 스토리지 마켓 저장소에 추가) — 3차에서 확정
 같은 인증 방식(서명 + 셀러 연결 토큰). 같은 규칙: 신규 테이블 `BotLinkCode`·`BotLink`(sellerId 대신 스튜디오 User.id 또는 판매자 id)만 추가. **응답 타입 정답: 봇 `src/platforms/studio/types.ts`**, 동작 예시: `src/platforms/studio/mock.ts`.
 
 | # | 메서드·경로 | 요청 | 응답 타입 | 설명 |
 |---|---|---|---|---|
-| S1 | `POST /link/verify` | `{ code, botUserKey }` | `LinkVerifyResult` | 스튜디오 셀러 화면 "AI 셀러 비서" 메뉴에서 발급한 6자리 |
+| S1 | `POST /link/verify` | `{ code, botUserKey }` | `LinkVerifyResult` | 스토리지 마켓 셀러 화면 "AI 셀러 비서" 메뉴에서 발급한 6자리 |
 | S2 | `POST /link/revoke` | 토큰 | `{}` | |
 | S3 | `GET /facilities/search` | `type?(STUDIO\|WAREHOUSE), region?, specialty?, date?(YYYY-MM-DD KST), startTime?(HH:mm), hours?, limit?` | `FacilitySearchResult` | **APPROVED 시설만**. date 를 주면 FacilityAvailableSlot(요일)·FacilityBlackoutDate·FacilityTimeBlock·기존 Booking(PENDING/APPROVED)·minLeadHours·maxAdvanceDays 를 반영해 그날 시작 가능한 시각(freeSlots) 계산 — **예약 정책 계산은 스튜디오 기존 코드 재사용** |
 | S4 | `GET /facilities/{id}/availability` | `date` | `Availability` | 그날 슬롯별 가능 여부 + 예약 규칙. 휴무면 closed=true |
-| S5 | `GET /bookings/mine` | `from, to, status?` | `BookingList` | 토큰 셀러의 Booking, adminUrl = 스튜디오 셀러 화면 예약 상세 |
-| S6 | `GET /orders/summary` | `from, to` | `StudioOrderSummary` | 스튜디오 자체 Order 집계 (셀러브릭스 주문과 별개) |
+| S5 | `GET /bookings/mine` | `from, to, status?` | `BookingList` | 토큰 셀러의 Booking, adminUrl = 스토리지 마켓 셀러 화면 예약 상세 |
+| S6 | `GET /orders/summary` | `from, to` | `StudioOrderSummary` | 스토리지 마켓 자체 Order 집계 (셀러브릭스 주문과 별개) |
 
 읽기 전용. 예약 생성·취소 같은 쓰기는 나중에 별도 명세(확인 버튼 필수).
 
 ## 10. 셀러 입구 — 대시보드 상단 [AI 비서] 버튼 + 로그인 동기화 (2026-11-13 확정)
 > 셀러는 셀러브릭스에 로그인한 상태에서 **대시보드 맨 위 [AI 비서] 버튼** 하나로 봇에 들어간다. 코드를 보거나 입력하지 않는다.
-> 셀러브릭스 쪽 작업은 **나중에 별도 브랜치(B단계)** 에서. 봇 쪽 자동 로그인은 이미 구현됨(`public/chat.js` autoLogin). 스튜디오도 같은 방식(C-2단계).
+> 셀러브릭스 쪽 작업은 **나중에 별도 브랜치(B단계)** 에서. 봇 쪽 자동 로그인은 이미 구현됨(`public/chat.js` autoLogin). 스토리지 마켓도 같은 방식(C-2단계).
 
 ### 10-1. 흐름
 1. 셀러가 셀러브릭스 대시보드 상단 **[AI 비서]** 버튼 클릭
@@ -182,6 +182,16 @@ model BotLink {                // 연결된 챗봇 사용자
 - 그 페이지를 만들 때 버튼 주소는 `GET {봇}/start/config`(공개 JSON, 5분 캐시)에서 읽는다: `{ kakao: { chat, add } | null, web, app: { url, version, size } | null, notice }` — 봇 관리자 화면에서 바꾸면 자동 반영, null 이면 숨김
 - 봇 시작 페이지(`{봇}/`)는 링크 공유·점검 때 쓰는 예비 입구로 유지
 
-### 10-5. 봇 쪽 남은 작은 일
+### 10-5. 최고관리자 메뉴 "AI 셀러 비서 관리" (B안, 2026-11-13 확정)
+관리 화면은 **봇 관리자 페이지 한 벌**만 유지하고, 셀러브릭스에는 **들어가는 메뉴(입구)** 만 만든다. 봇의 수정·고도화는 모두 봇에서.
+| 항목 | 내용 |
+|---|---|
+| 메뉴 | 셀러브릭스 최고관리자(SUPER_ADMIN) 좌측 메뉴에 **"AI 셀러 비서 관리"** (기존 고객지원 "챗봇 관리"와 별개 — 이름 겹치지 않게) |
+| 코드 발급 API | `POST /api/admin/bot-admin/code` (SUPER_ADMIN 세션 + Google OTP 통과한 세션만) → 봇에 서명 요청으로 관리자용 1회용 코드 발급을 요청하거나, 셀러브릭스가 서명한 1회용 토큰(60초)을 만들어 `{봇}/admin/sso?token=…` 로 전달 |
+| 열리는 방식 | 셀러브릭스 관리자 화면 안에 끼워 넣기(iframe) 또는 새 탭. iframe 이면 봇의 `frame-ancestors` 에 셀러브릭스 도메인 허용 + 관리자 쿠키 `SameSite=None; Secure` |
+| 봇 쪽 추가(그때 개발) | `/admin/sso` (서명·만료·1회용 검사 후 관리자 세션 발급), iframe 허용 설정. 봇 자체 비밀번호 로그인(`/admin`)은 **비상용으로 유지** |
+| 보안 | 1회용·60초, 서명 키는 셀러브릭스·봇 `.env` 에만, 관리자 SSO 로그인도 설정 변경 이력에 기록 |
+
+### 10-6. 봇 쪽 남은 작은 일
 - 웹챗 상단에 "셀러브릭스로 돌아가기" 링크 (셀러브릭스 주소 설정값 사용)
 - (2단계 선택) 대시보드 안 떠 있는 채팅 창(iframe 위젯) — 봇 `frame-ancestors` 에 셀러브릭스 도메인 허용 + 세션 쿠키 `SameSite=None; Secure` 필요, 보안 점검 후

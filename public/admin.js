@@ -163,8 +163,8 @@ function render(state) {
   const groups = [sbGroup];
   if (state.platforms?.studio?.mode === 'MOCK' && state.mockStudioSellers?.length) {
     const stGroup = document.createElement('optgroup');
-    stGroup.label = '스튜디오';
-    stGroup.append(...state.mockStudioSellers.map((item) => { const o = new Option(item.name + ' (스튜디오)', item.id); o.dataset.platform = 'STUDIO'; return o; }));
+    stGroup.label = '스토리지 마켓';
+    stGroup.append(...state.mockStudioSellers.map((item) => { const o = new Option(item.name + ' (스토리지 마켓)', item.id); o.dataset.platform = 'STUDIO'; return o; }));
     groups.push(stGroup);
   }
   seller.replaceChildren(...groups);
@@ -353,7 +353,7 @@ async function loadUsers() {
   if (version !== sessionVersion) return;
   $('#users').innerHTML = rows.length ? table(['사용자 키', '연결', '마지막 대화', '관리'], rows.map((user) => [
     `<span class="mono">${escapeHtml(user.botUserKey)}</span>`,
-    user.links.map((link) => `${link.platform === 'SELLERBRICKS' ? '셀러브릭스' : '스튜디오'} · ${escapeHtml(link.accountName)}`).join('<br>') || '없음',
+    user.links.map((link) => `${link.platform === 'SELLERBRICKS' ? '셀러브릭스' : '스토리지 마켓'} · ${escapeHtml(link.accountName)}`).join('<br>') || '없음',
     escapeHtml(new Date(user.lastSeenAt).toLocaleString('ko-KR')),
     user.links.length ? `<button type="button" class="danger" data-unlink="${escapeHtml(user.id)}">연결 해제</button>` : '',
   ])) : '<p class="muted">아직 사용자가 없습니다.</p>';

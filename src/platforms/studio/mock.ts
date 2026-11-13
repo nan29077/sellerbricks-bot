@@ -1,5 +1,5 @@
-// 가짜 스튜디오 API — 실제 스튜디오 스키마 모양의 데이터 (시설 8곳, 운영 시간·휴무일·예약 규칙, 셀러별 예약·주문)
-// 스튜디오 배포 전 봇 쪽 개발·점검용. 관리자 화면에서 스튜디오 "가짜(MOCK)" 모드일 때 사용.
+// 가짜 스토리지 마켓 API — 실제 스토리지 마켓 스키마 모양의 데이터 (시설 8곳, 운영 시간·휴무일·예약 규칙, 셀러별 예약·주문)
+// 스토리지 마켓 배포 전 봇 쪽 개발·점검용. 관리자 화면에서 스토리지 마켓 "가짜(MOCK)" 모드일 때 사용.
 import { prisma } from '../../lib/db.js';
 import { kstDate, kstParts, kstStartOfDay } from '../../lib/time.js';
 import { PlatformError, type LinkVerifyResult } from '../sellerbricks/types.js';

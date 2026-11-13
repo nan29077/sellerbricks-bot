@@ -1,5 +1,5 @@
 // 자체 웹챗·앱 API — 같은 대화 코어(bot.ts)를 쓰고, 입구만 다르다.
-// 로그인: 셀러브릭스(또는 스튜디오) 관리자 화면에서 받은 6자리 코드 → 30일 세션 쿠키
+// 로그인: 셀러브릭스(또는 스토리지 마켓) 관리자 화면에서 받은 6자리 코드 → 30일 세션 쿠키
 // 보안: 세션 쿠키 HttpOnly·SameSite=Lax, 모든 POST 에 X-Requested-With: sbchat 헤더 필수(다른 사이트에서 위조 요청 차단)
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -79,7 +79,7 @@ export async function webchatRoutes(app: FastifyInstance) {
     reply.type('application/manifest+json; charset=utf-8').header('Cache-Control', 'public, max-age=3600').send({
       name: 'AI 셀러 비서 · 셀러브릭스',
       short_name: 'AI 셀러 비서',
-      description: '주문·정산·방송·스튜디오를 대화로 확인하는 셀러브릭스 AI 비서',
+      description: '주문·정산·방송·스토리지 마켓 예약을 대화로 확인하는 셀러브릭스 AI 비서',
       start_url: '/chat?source=pwa',
       scope: '/chat',
       display: 'standalone',

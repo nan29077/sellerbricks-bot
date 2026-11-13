@@ -43,7 +43,7 @@ const SUGGEST_SB = [
 ];
 const SUGGEST_ST = [
   ['studio', '수요일 화장품 방송 가능한 스튜디오', '빈 시간까지 찾아줘요'],
-  ['studio', '내 스튜디오 예약', '다가오는 예약 확인'],
+  ['studio', '내 스토리지 마켓 예약', '다가오는 예약 확인'],
 ];
 const WORKING = ['질문을 이해하고 있어요', '데이터를 확인하고 있어요', '숫자를 맞춰 보고 있어요', '답변을 정리하고 있어요'];
 
@@ -88,7 +88,7 @@ async function boot() {
   showLogin();
 }
 
-// ── 자동 로그인: 셀러브릭스·스튜디오 "AI 셀러 비서" 메뉴의 [웹챗 열기] → /chat?platform=SELLERBRICKS&code=123456 ──
+// ── 자동 로그인: 셀러브릭스·스토리지 마켓 상단 [AI 비서] 버튼 → /chat?platform=SELLERBRICKS&code=123456 ──
 async function autoLogin() {
   const q = new URLSearchParams(location.search);
   const code = (q.get('code') || '').replace(/\D/g, '');
@@ -109,7 +109,7 @@ async function autoLogin() {
     if (state.me?.loggedIn) { toast('이미 로그인되어 있어요'); return false; }
     setPlatform(platform);
     showLogin();
-    $('#loginError').textContent = `${e.message} 관리자 화면에서 다시 [웹챗 열기]를 누르거나 코드를 입력해 주세요.`;
+    $('#loginError').textContent = `${e.message} 셀러 관리자 화면에서 [AI 비서]를 다시 누르거나 코드를 입력해 주세요.`;
     return true;
   }
 }
@@ -139,7 +139,7 @@ const isApp = () => /SellerbricksBotApp/i.test(navigator.userAgent);
 function setPlatform(p) {
   state.platform = p;
   for (const b of $('#platformSeg').children) b.setAttribute('aria-checked', String(b.dataset.platform === p));
-  $('#howPlatform').textContent = p === 'STUDIO' ? '셀러브릭스 스튜디오' : '셀러브릭스';
+  $('#howPlatform').textContent = p === 'STUDIO' ? '스토리지 마켓' : '셀러브릭스';
 }
 
 function otpInputs() { return [...$('#otp').querySelectorAll('input')]; }
@@ -220,7 +220,7 @@ function renderAccount() {
   const links = me.links || [];
   const sb = links.find((l) => l.platform === 'SELLERBRICKS');
   const st = links.find((l) => l.platform === 'STUDIO');
-  const line = sb && st ? (sb.accountName === st.accountName ? `${sb.accountName} · 셀러브릭스+스튜디오` : `${sb.accountName} · 스튜디오 ${st.accountName}`) : sb ? sb.accountName : st ? `${st.accountName} · 스튜디오` : '';
+  const line = sb && st ? (sb.accountName === st.accountName ? `${sb.accountName} · 셀러브릭스+스토리지 마켓` : `${sb.accountName} · 스토리지 마켓 ${st.accountName}`) : sb ? sb.accountName : st ? `${st.accountName} · 스토리지 마켓` : '';
   $('#accountLine').innerHTML = line ? `<span class="live"></span>${esc(line)}` : '연결된 계정이 없어요';
   $('#bellDot').hidden = !me.unread;
   renderShortcuts();
@@ -248,7 +248,7 @@ function renderWelcome() {
   el.innerHTML = `
     <div class="welcome-hero">
       <img src="/assets/app-icon.svg" alt="" width="52" height="52">
-      <div><h2>무엇을 도와드릴까요?</h2><p>${hasSb() ? `주문·정산·방송${hasStudio() ? '·스튜디오를' : '을'}` : '스튜디오 예약·주문을'} 물어보세요.</p></div>
+      <div><h2>무엇을 도와드릴까요?</h2><p>${hasSb() ? `주문·정산·방송${hasStudio() ? '·스토리지 마켓 예약을' : '을'}` : '스토리지 마켓 예약·주문을'} 물어보세요.</p></div>
     </div>
     <div class="suggest">${list.map(([ic, q, sub]) => `<button type="button" data-q="${esc(q)}"><span class="ico">${svg(ic)}</span><b>${esc(q)}</b><span>${esc(sub)}</span></button>`).join('')}</div>`;
   el.addEventListener('click', (e) => {
@@ -632,7 +632,7 @@ async function openMenu() {
   const me = state.me || {};
   const links = me.links || [];
   const linked = new Set(links.map((l) => l.platform));
-  const canAdd = [!linked.has('SELLERBRICKS') && ['SELLERBRICKS', '셀러브릭스'], !linked.has('STUDIO') && me.studioOpen && ['STUDIO', '스튜디오']].filter(Boolean);
+  const canAdd = [!linked.has('SELLERBRICKS') && ['SELLERBRICKS', '셀러브릭스'], !linked.has('STUDIO') && me.studioOpen && ['STUDIO', '스토리지 마켓']].filter(Boolean);
   let prefs = { engine: false, kinds: [] };
   try { prefs = await api('/prefs'); } catch { /* 무시 */ }
   const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);

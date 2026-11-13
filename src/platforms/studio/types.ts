@@ -1,5 +1,5 @@
-// 셀러브릭스 스튜디오 내부 봇 API 응답 타입 — docs/04_플랫폼API명세.md 9장. 이 파일이 정답.
-// 스튜디오 실제 스키마(Facility·FacilityAvailableSlot·FacilityBlackoutDate·Booking·Order) 모양을 따른다.
+// 스토리지 마켓(옛 셀러브릭스 스튜디오) 내부 봇 API 응답 타입 — docs/04_플랫폼API명세.md 9장. 이 파일이 정답.
+// 스토리지 마켓 실제 스키마(Facility·FacilityAvailableSlot·FacilityBlackoutDate·Booking·Order) 모양을 따른다.
 import type { LinkVerifyResult } from '../sellerbricks/types.js';
 
 export type FacilityType = 'STUDIO' | 'WAREHOUSE';
