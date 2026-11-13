@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>셀러브릭스 봇 관리자</title>
+  <meta name="description" content="주문, 상품, 정산을 대화로 확인하는 셀러브릭스 챗봇">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:site_name" content="셀러브릭스">
+  <meta property="og:title" content="셀러브릭스 봇 | 셀러의 하루, 대화로 정리하다">
+  <meta property="og:description" content="주문, 상품, 정산을 대화로 확인하는 셀러브릭스 챗봇">
+  <meta property="og:url" content="https://nan29077.github.io/sellerbricks-bot/admin">
+  <meta property="og:image" content="https://nan29077.github.io/sellerbricks-bot/assets/share-card.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="628">
+  <meta property="og:image:alt" content="셀러의 하루, 대화로 정리하다. 말풍선과 배송 상자를 담은 셀러브릭스 공유 이미지">
+  <link rel="icon" href="/sellerbricks-bot/assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/sellerbricks-bot/assets/admin.css">
+  <link rel="stylesheet" href="/sellerbricks-bot/assets/auth.css">
+<link rel="stylesheet" href="/sellerbricks-bot/assets/preview.css"></head>
+<body>
+  <main id="login" class="login-page">
+    <div class="auth-layout">
+      <section class="auth-panel" aria-labelledby="loginTitle">
+        <a class="auth-brand" href="/sellerbricks-bot/" aria-label="Sellerbricks 시작 페이지">
+          <img src="/sellerbricks-bot/assets/logo.svg" alt="" width="36" height="36"><span>Sellerbricks</span>
+        </a>
+        <div class="login-card">
+          <h1 id="loginTitle">관리자 로그인</h1>
+          <p>GitHub에서 보는 관리자 로그인 디자인입니다.</p>
+          <form id="loginForm" aria-describedby="previewNote">
+            <label for="pw">비밀번호</label>
+            <div class="password-field">
+              <input type="password" id="pw" placeholder="미리보기 화면" disabled>
+            </div>
+            <p id="loginErr" class="form-error" role="alert"></p>
+            <button id="loginButton" class="primary login-button" type="button" disabled>로그인</button>
+          </form><p class="preview-note" id="previewNote">실제 관리자 로그인은 챗봇 서버에서 이용할 수 있습니다.</p>
+        </div>
+        <a class="auth-foot login-back" href="/sellerbricks-bot/">시작 페이지로 돌아가기</a>
+      </section>
+      <div class="auth-art"><img src="/sellerbricks-bot/assets/seller-login.webp" width="1050" height="1312" alt=""></div>
+    </div>
+  </main>
+
+</body>
+</html>
