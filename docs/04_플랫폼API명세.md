@@ -69,7 +69,11 @@ model BotLink {                // 연결된 챗봇 사용자
 ```
 ⚠️ 운영 RDS 직결 — 인수인계서 5장의 안전 절차(diff 로 DROP 없음 확인 → `db push --skip-generate` → `generate`)를 반드시 지킬 것.
 
-셀러 관리자 화면: **"카카오 챗봇 연결"** — [코드 발급] 버튼 → 6자리 숫자 + 남은 시간 표시, 연결된 챗봇 목록 + [연결 해제].
+셀러 관리자 화면: **"AI 셀러 비서"** 메뉴 (3차에서 이름 변경 — 카카오·웹챗·앱 공용)
+- [코드 발급] 버튼 → 6자리 숫자 + 남은 시간 표시 (이 코드를 카카오 채팅방에 "연결 123456" 또는 웹챗·앱 첫 화면에 입력)
+- 연결된 챗봇 목록 + [연결 해제] (botUserKey 가 `web:` 로 시작하면 "웹챗·앱", 아니면 "카카오"로 표시)
+- **[AI 셀러 비서 열기]** 링크 → 봇 시작 페이지 `{봇 주소}/` (새 창). 셀러브릭스 `.env` 에 `BOT_PUBLIC_URL` 추가 권장
+- 같은 셀러가 여러 기기에서 연결하면 BotLink 가 여러 개 생길 수 있음(정상). 봇은 같은 계정의 옛 토큰을 `/link/revoke` 로 해제한다
 
 ## 4. 엔드포인트
 응답 필드 상세는 `types.ts` 의 같은 이름 타입 참고.
@@ -132,5 +136,52 @@ model BotLink {                // 연결된 챗봇 사용자
 3. 쓰기 요청은 감사 로그(누가·언제·무엇을)를 남긴다 — 기존 로그 방식 사용.
 4. 응답 `adminUrl` = 셀러 관리자 해당 상품 화면, `shopUrl` = 셀러샵 일반상품 탭 상품 주소(마이샵).
 
-## 9. 스튜디오 (배포 후 v1 추가 예정)
-같은 인증 방식. 예정 엔드포인트: `/facilities/search`(유형·지역·품목·요일·시간), `/facilities/{id}/availability`, `/bookings/mine`, `/orders/summary`(스튜디오 주문 — 셀러브릭스 주문과 분리).
+## 9. 스튜디오 (배포 후 셀러브릭스 스튜디오 저장소에 추가) — 3차에서 확정
+같은 인증 방식(서명 + 셀러 연결 토큰). 같은 규칙: 신규 테이블 `BotLinkCode`·`BotLink`(sellerId 대신 스튜디오 User.id 또는 판매자 id)만 추가. **응답 타입 정답: 봇 `src/platforms/studio/types.ts`**, 동작 예시: `src/platforms/studio/mock.ts`.
+
+| # | 메서드·경로 | 요청 | 응답 타입 | 설명 |
+|---|---|---|---|---|
+| S1 | `POST /link/verify` | `{ code, botUserKey }` | `LinkVerifyResult` | 스튜디오 셀러 화면 "AI 셀러 비서" 메뉴에서 발급한 6자리 |
+| S2 | `POST /link/revoke` | 토큰 | `{}` | |
+| S3 | `GET /facilities/search` | `type?(STUDIO\|WAREHOUSE), region?, specialty?, date?(YYYY-MM-DD KST), startTime?(HH:mm), hours?, limit?` | `FacilitySearchResult` | **APPROVED 시설만**. date 를 주면 FacilityAvailableSlot(요일)·FacilityBlackoutDate·FacilityTimeBlock·기존 Booking(PENDING/APPROVED)·minLeadHours·maxAdvanceDays 를 반영해 그날 시작 가능한 시각(freeSlots) 계산 — **예약 정책 계산은 스튜디오 기존 코드 재사용** |
+| S4 | `GET /facilities/{id}/availability` | `date` | `Availability` | 그날 슬롯별 가능 여부 + 예약 규칙. 휴무면 closed=true |
+| S5 | `GET /bookings/mine` | `from, to, status?` | `BookingList` | 토큰 셀러의 Booking, adminUrl = 스튜디오 셀러 화면 예약 상세 |
+| S6 | `GET /orders/summary` | `from, to` | `StudioOrderSummary` | 스튜디오 자체 Order 집계 (셀러브릭스 주문과 별개) |
+
+읽기 전용. 예약 생성·취소 같은 쓰기는 나중에 별도 명세(확인 버튼 필수).
+
+## 10. 셀러 입구 — 대시보드 상단 [AI 비서] 버튼 + 로그인 동기화 (2026-11-13 확정)
+> 셀러는 셀러브릭스에 로그인한 상태에서 **대시보드 맨 위 [AI 비서] 버튼** 하나로 봇에 들어간다. 코드를 보거나 입력하지 않는다.
+> 셀러브릭스 쪽 작업은 **나중에 별도 브랜치(B단계)** 에서. 봇 쪽 자동 로그인은 이미 구현됨(`public/chat.js` autoLogin). 스튜디오도 같은 방식(C-2단계).
+
+### 10-1. 흐름
+1. 셀러가 셀러브릭스 대시보드 상단 **[AI 비서]** 버튼 클릭
+2. 셀러브릭스 서버가 로그인 세션의 셀러로 **1회용 연결 코드(60초)** 발급 → `{봇}/chat?platform=SELLERBRICKS&code=123456` 을 **새 탭**으로 연다
+3. 봇이 1번 API(`/link/verify`)로 코드를 확인 → 연결 토큰 저장 → 봇 세션(30일) 발급 → 채팅 화면. 주소창의 코드는 즉시 지움
+4. 처음 누를 때 계정 연결까지 자동 완료. 이후에도 누를 때마다 같은 방식으로 다시 맞춰진다(세션 갱신)
+
+### 10-2. 셀러브릭스에 추가할 것
+| 항목 | 내용 |
+|---|---|
+| 버튼 | `src/app/(dashboard)/layout.tsx` 상단(헤더)에 **[AI 비서]** — **SELLER 역할에만** 표시 (SUPER_ADMIN·MIDDLE·BRAND·NODE 숨김). 모바일 헤더에도 |
+| 코드 발급 API | `POST /api/seller/bot-link/web-code` (셀러 로그인 세션 필수, 1분 10회 제한) → `BotLinkCode` 생성(유효 60초, sellerId = 세션 셀러의 SellerProfile.id) → `{ url: "{BOT_PUBLIC_URL}/chat?platform=SELLERBRICKS&code=123456" }` |
+| 버튼 동작 | 클릭 즉시 `window.open('', '_blank')` 로 빈 탭을 먼저 연 뒤 API 응답의 url 로 이동 (팝업 차단 방지). 실패하면 탭을 닫고 토스트 |
+| 환경변수 | `BOT_PUBLIC_URL=https://bot.sellerbricks.co.kr` |
+| 테이블·API | 3장의 `BotLinkCode`·`BotLink` + 4장 1·2번(`/link/verify`·`/link/revoke`) + 조회 API — 원래 계획 그대로 |
+
+### 10-3. 동기화 규칙
+| 상황 | 동작 |
+|---|---|
+| 다른 셀러 계정으로 버튼 클릭 | 봇도 그 계정으로 자동 전환 (봇 구현됨) |
+| 같은 계정을 PC·휴대폰·앱에서 | 같은 대화 기록 (봇 구현됨) |
+| 셀러브릭스 로그아웃 | (선택) 로그아웃 처리에서 그 셀러의 웹 BotLink 들을 `/link/revoke` 와 같은 방식으로 폐기 → 봇은 다음 요청 때 "계정 연결이 끊어졌어요" 안내. 넣지 않으면 봇 세션은 30일 유지 |
+| 코드 만료·오류 | 봇 로그인 화면에 "관리자 화면에서 다시 [AI 비서]를 눌러 주세요" 안내 (봇 구현됨) |
+
+### 10-4. 그 밖의 입구 (보조)
+- **카카오 채널·앱 받기**: 웹챗 메뉴 → "다른 방법으로 쓰기"(봇 구현됨), 셀러브릭스 설정 화면의 "AI 셀러 비서" 페이지(선택 — 카카오 연결용 5분 코드·[코드 복사], 연결된 기기 목록·[연결 해제])
+- 그 페이지를 만들 때 버튼 주소는 `GET {봇}/start/config`(공개 JSON, 5분 캐시)에서 읽는다: `{ kakao: { chat, add } | null, web, app: { url, version, size } | null, notice }` — 봇 관리자 화면에서 바꾸면 자동 반영, null 이면 숨김
+- 봇 시작 페이지(`{봇}/`)는 링크 공유·점검 때 쓰는 예비 입구로 유지
+
+### 10-5. 봇 쪽 남은 작은 일
+- 웹챗 상단에 "셀러브릭스로 돌아가기" 링크 (셀러브릭스 주소 설정값 사용)
+- (2단계 선택) 대시보드 안 떠 있는 채팅 창(iframe 위젯) — 봇 `frame-ancestors` 에 셀러브릭스 도메인 허용 + 세션 쿠키 `SameSite=None; Secure` 필요, 보안 점검 후

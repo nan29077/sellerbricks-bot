@@ -1,6 +1,7 @@
 import { config } from '../lib/config.js';
 import { prisma } from '../lib/db.js';
-import { getApiKey, getLlmSettings } from '../lib/settings.js';
+import { getApiKey, getCostSettings, getLlmSettings } from '../lib/settings.js';
+import { profileOf } from '../channels/profile.js';
 import { fmtDateTime, kstParts, periodOf } from '../lib/time.js';
 import { PLATFORM_LABEL } from '../platforms/index.js';
 import { execTool, toolsFor, type ToolExecLog } from '../tools/index.js';
@@ -38,8 +39,10 @@ function systemPrompt(ctx: ToolContext): string {
   const p = kstParts(now);
   const wd = '일월화수목금토'[p.wd];
   const linked = Object.entries(ctx.links).map(([k, v]) => `${PLATFORM_LABEL[k as keyof typeof PLATFORM_LABEL]}(${v!.accountName})`).join(', ');
+  const prof = profileOf(ctx.channel && ctx.channel !== 'MCP' ? ctx.channel : 'KAKAO', ctx.view);
+  const where = prof.view === 'WEB' ? (ctx.channel === 'APP' ? '앱' : '웹챗') : '카카오톡';
   return [
-    '너는 라이브커머스 플랫폼 "셀러브릭스"의 셀러 전용 카카오톡 비서야.',
+    `너는 라이브커머스 플랫폼 "셀러브릭스"(와 셀러브릭스 스튜디오)의 셀러 전용 AI 비서야. 지금 대화하는 곳은 ${where}이야.`,
     `지금은 한국 시간 ${p.y}년 ${fmtDateTime(now)} (${wd}요일)이고, 이번 주는 ${periodOf('this_week', now).label} 이야.`,
     `이 셀러가 연결한 계정: ${linked || '없음'}.`,
     '',
@@ -47,7 +50,9 @@ function systemPrompt(ctx: ToolContext): string {
     '1. 숫자·주문·금액은 반드시 도구를 호출해서 얻은 값만 말해. 추측하거나 지어내지 마.',
     '2. 정산·수수료·출금 금액은 도구가 준 값을 그대로 써. 직접 다시 계산하지 마.',
     '3. 셀러브릭스 주문서(계좌/카드)와 일반 주문은 합치지 말고 나눠서 말해. 스튜디오 주문도 별도야.',
-    '4. 카카오톡 말풍선에 맞게 짧은 줄바꿈을 쓰고 마크다운(**, #, 표)과 이모지를 생략해. 600자 이내로 핵심부터.',
+    prof.markdown
+      ? `4. 화면에 간단한 마크다운(**굵게**, - 목록, 짧은 표)을 쓸 수 있어. 제목(#)과 이모지는 쓰지 마. ${prof.replyChars}자 이내로 핵심부터.`
+      : `4. 카카오톡 말풍선에 맞게 짧은 줄바꿈을 쓰고 마크다운(**, #, 표)과 이모지를 생략해. ${prof.replyChars}자 이내로 핵심부터.`,
     '5. 구매자 이름·전화번호는 도구가 가려 준 그대로만 써.',
     '6. 지금은 조회만 가능해. 송장 입력·취소·예약 같은 실행 요청은 "관리자 화면에서 처리해 주세요"라고 안내하고 해당 버튼을 쓰게 해.',
     '7. 기간이 애매하면 오늘(주문), 최근 7일(미입금), 이번 주(인기 상품), 이번 달(정산)을 기본으로 쓰고 어떤 기간인지 밝혀.',
@@ -61,12 +66,41 @@ function systemPrompt(ctx: ToolContext): string {
     '15. 사진으로 상품 등록은 셀러가 사진과 함께 "간편 상품 등록해줘"라고 보내면 된다고 안내해.',
     ctx.prefs.answer_style === 'detailed' ? '16. 이 셀러는 자세한 답변을 원해.' : ctx.prefs.answer_style === 'short' ? '16. 이 셀러는 아주 짧은 답변을 원해(3~5줄).' : '',
     ctx.prefs.unshipped_delay_days ? `17. 이 셀러의 송장 지연 기준은 ${ctx.prefs.unshipped_delay_days}일이야.` : '',
+    '18. 스튜디오(시설 찾기·예약 가능 시간·내 예약·스튜디오 주문) 질문은 studio_ 도구를 써. 요일만 말하면 가장 가까운 그 요일로 보고, 예약 자체는 스튜디오 화면에서 하도록 버튼으로 안내해.',
   ].filter(Boolean).join('\n');
 }
 
 async function monthlyAiCount(): Promise<number> {
   const from = periodOf('this_month').from;
   return prisma.chatLog.count({ where: { createdAt: { gte: from }, provider: { in: ['CLAUDE', 'GPT'] } } });
+}
+
+async function dailyAiCount(botUserId: string, now: Date): Promise<number> {
+  return prisma.chatLog.count({ where: { botUserId, createdAt: { gte: periodOf('today', now).from }, provider: { in: ['CLAUDE', 'GPT'] } } });
+}
+
+/** 짧고 단순한 조회는 가벼운 모델, 글쓰기·리포트·분석·여러 질문은 기본 모델 (2-2차 ⑤) */
+const HEAVY = /리포트|보고서|엑셀|분석|비교|추이|대본|써\s*줘|작성|만들어|설명|추천|왜|전략|아이디어|그리고|이랑|하고\s|,/;
+export function pickModel(p: 'CLAUDE' | 'GPT', text: string, llm: { claudeModel: string; gptModel: string }, cost: { autoModel: boolean; claudeLight: string; gptLight: string }): string {
+  const main = p === 'CLAUDE' ? llm.claudeModel : llm.gptModel;
+  if (!cost.autoModel) return main;
+  const light = p === 'CLAUDE' ? cost.claudeLight : cost.gptLight;
+  return text.length <= 30 && !HEAVY.test(text) ? light : main;
+}
+
+// ── 동시 처리 제한 (작업 대기열): AI 질문이 몰리면 순서대로 처리 ──
+let running = 0;
+const waiting: (() => void)[] = [];
+async function acquire(max: number): Promise<() => void> {
+  if (running >= max) await new Promise<void>((r) => waiting.push(r));
+  running++;
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    running--;
+    waiting.shift()?.();
+  };
 }
 
 export interface AgentInput {
@@ -82,7 +116,10 @@ export async function runAgent(input: AgentInput): Promise<AgentOutput> {
 
   if (!tools.length) {
     return {
-      text: '아직 연결된 계정이 없어요.\n셀러브릭스 셀러 관리자 화면 → "카카오 챗봇 연결"에서 6자리 코드를 받은 뒤, 여기에 "연결 123456" 처럼 보내 주세요.',
+      text:
+        ctx.view === 'WEB'
+          ? '아직 연결된 계정이 없어요.\n셀러브릭스 셀러 관리자 화면 → "AI 셀러 비서" 메뉴에서 6자리 코드를 받은 뒤, 오른쪽 위 메뉴 → 연결 계정에 입력해 주세요.'
+          : '아직 연결된 계정이 없어요.\n셀러브릭스 셀러 관리자 화면 → "AI 셀러 비서" 메뉴에서 6자리 코드를 받은 뒤, 여기에 "연결 123456" 처럼 보내 주세요.',
       quickReplies: ['연결 방법', '도움말'],
       provider: 'SYSTEM',
       model: null,
@@ -97,12 +134,15 @@ export async function runAgent(input: AgentInput): Promise<AgentOutput> {
   let model: string | null = null;
   let apiKey = '';
   let note = '';
+  const cost = await getCostSettings();
   if (llm.effective === 'CLAUDE' || llm.effective === 'GPT') {
     const limitHit = llm.monthlyLimit > 0 && (await monthlyAiCount()) >= llm.monthlyLimit;
+    const dailyHit = !limitHit && cost.dailyPerUser > 0 && (await dailyAiCount(ctx.botUserId, ctx.now)) >= cost.dailyPerUser;
     if (limitHit) note = '(이번 달 AI 사용 한도에 도달해 기본 응답으로 안내해요)\n';
+    else if (dailyHit) note = '(오늘 AI 질문 한도를 모두 써서 기본 응답으로 안내해요. 내일 다시 이용해 주세요)\n';
     else {
       provider = llm.effective === 'CLAUDE' ? anthropicProvider : openaiProvider;
-      model = llm.effective === 'CLAUDE' ? llm.claudeModel : llm.gptModel;
+      model = pickModel(llm.effective, input.userText, llm, cost);
       apiKey = (await getApiKey(llm.effective === 'CLAUDE' ? 'anthropic' : 'openai')).key;
     }
   }
@@ -136,6 +176,7 @@ export async function runAgent(input: AgentInput): Promise<AgentOutput> {
 
   let error: string | undefined;
   let result;
+  const release = provider.name === 'MOCK' ? () => {} : await acquire(cost.maxConcurrent);
   try {
     result = await provider.run(params);
     if (!result.text) throw new Error('AI 응답이 비어 있음');
@@ -150,6 +191,8 @@ export async function runAgent(input: AgentInput): Promise<AgentOutput> {
     lastLink = undefined;
     toolData.length = 0;
     result = await mockProvider.run(params);
+  } finally {
+    release();
   }
   const checkWarn = provider.name === 'MOCK' ? undefined : verifyNumbers(result.text, toolData);
 

@@ -67,6 +67,29 @@ const REPORT_KINDS: [RegExp, string][] = [
   [/월간|한\s*달\s*정리|월\s*리포트/, 'monthly_report'],
 ];
 
+const REGIONS = ['성수', '성동', '강남', '마포', '망원', '성남', '분당', '김포', '인천'];
+const SPECIALTIES: [RegExp, string][] = [[/화장품|코스메틱|뷰티/, '코스메틱'], [/의류|옷|패션/, '의류'], [/식품|음식|먹거리/, '식품'], [/생활|리빙/, '생활용품'], [/잡화|액세서리/, '잡화']];
+
+function studioIntent(t: string): Intent | null {
+  if (!/스튜디오|창고|대관|촬영\s*공간/.test(t)) return null;
+  if (/스튜디오\s*(쪽\s*)?(주문|매출)/.test(t)) {
+    const period = parsePeriod(t);
+    return { tool: 'studio_order_summary', args: period ? { period } : {} };
+  }
+  if (/예약\s*(현황|목록|내역|확인|보여)|내\s*(스튜디오\s*)?예약|예약한|예약\s*된/.test(t)) return { tool: 'studio_my_bookings', args: { scope: /지난|했던|이전/.test(t) ? 'past' : 'upcoming', ...(/대기|승인\s*안/.test(t) ? { status: 'PENDING' } : {}) } };
+  const args: Record<string, unknown> = {};
+  if (/창고|물류/.test(t)) args.type = 'WAREHOUSE';
+  else if (/스튜디오/.test(t)) args.type = 'STUDIO';
+  const region = REGIONS.find((r) => t.includes(r));
+  if (region) args.region = region;
+  for (const [re, v] of SPECIALTIES) if (re.test(t)) { args.specialty = v; break; }
+  const day = t.match(/(오늘|내일|모레|(다음\s*주\s*)?[월화수목금토일]요일)/);
+  if (day) args.date = day[1];
+  const hours = t.match(/(\d{1,2})\s*시간/);
+  if (hours) args.hours = Number(hours[1]);
+  return { tool: 'studio_search_facilities', args };
+}
+
 export function detectIntent(raw: string, now: Date): Intent | null {
   const t = raw.replace(/\s+/g, ' ').trim();
   const period = parsePeriod(t);
@@ -77,6 +100,10 @@ export function detectIntent(raw: string, now: Date): Intent | null {
   if (delay) return { tool: 'set_preference', args: { key: 'unshipped_delay_days', value: delay[2] } };
   if (/(기본\s*등록\s*위치|등록\s*기본)/.test(t)) return { tool: 'set_preference', args: { key: 'product_default_target', value: /방송|둘|번호/.test(t) ? 'BOTH' : 'DIRECT' } };
   if (/답변.*(짧게|간단히|자세히|길게)/.test(t)) return { tool: 'set_preference', args: { key: 'answer_style', value: /자세|길게/.test(t) ? 'detailed' : 'short' } };
+
+  // 스튜디오 (시설 찾기·예약·스튜디오 주문)
+  const studio = studioIntent(t);
+  if (studio) return studio;
 
   // 문구 작성
   if (/써\s*줘|작성|만들어\s*줘|짜\s*줘|추천해\s*줘/.test(t)) {
@@ -175,6 +202,7 @@ export const MOCK_HELP = [
   '· 이번 달 매출 리포트 만들어줘 / 주문 목록 엑셀로',
   '· 3번 상품 방송 대본 써줘 / 리뷰 답변 써줘',
   '· 사진 + "간편 상품 등록해줘 32000원 20개"',
+  '· (스튜디오) 수요일 화장품 방송 가능한 스튜디오 / 내 스튜디오 예약',
 ].join('\n');
 
 const lastIntent = new Map<string, Intent[]>();

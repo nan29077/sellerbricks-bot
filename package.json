@@ -1,8 +1,8 @@
 {
   "name": "sellerbricks-bot",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "셀러브릭스 + 셀러브릭스 스튜디오 공용 카카오 채널 챗봇·MCP 서버",
+  "description": "셀러브릭스 + 셀러브릭스 스튜디오 공용 AI 셀러 비서 — 카카오 채널 · 웹챗 · 안드로이드 앱 · MCP 서버",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -22,10 +22,12 @@
     "@fastify/cookie": "^9.4.0",
     "@prisma/client": "5.22.0",
     "dotenv": "^16.4.5",
-    "fastify": "^4.28.1"
+    "fastify": "^4.28.1",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@types/node": "^20.16.0",
+    "@types/qrcode": "^1.5.5",
     "prisma": "5.22.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"

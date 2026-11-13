@@ -1,8 +1,10 @@
-// 메시지 처리 핵심 — 카카오 스킬·관리자 테스트 채팅이 같은 경로를 쓴다.
+// 메시지 처리 핵심 — 카카오 스킬·웹챗·앱·관리자 테스트 채팅이 같은 경로를 쓴다.
+// 채널별 차이(글자 수·긴 답변·속도 제한)는 channels/profile.ts 의 표를 따른다.
 // 순서: 속도 제한 → 피드백·결과 보기 → 사진 상품 등록 흐름 → 명령(연결·도움말) → AI 에이전트
 import { DEFAULT_QUICK, runAgent } from './agent/agent.js';
 import { MOCK_HELP } from './agent/providers/mock.js';
 import type { AgentOutput, ChatTurn } from './agent/types.js';
+import { type ChannelKey, type ChannelView, profileOf } from './channels/profile.js';
 import { createArtifact } from './lib/artifacts.js';
 import { prisma } from './lib/db.js';
 import { maskForLog } from './lib/mask.js';
@@ -27,25 +29,30 @@ async function history(botUserId: string): Promise<ChatTurn[]> {
   return rows.reverse().flatMap((r) => [{ role: 'user' as const, text: r.userText }, { role: 'assistant' as const, text: r.replyText }]);
 }
 
-// ── 속도 제한 (카카오 사용자당 1분 10회 — 관리자 테스트 채팅은 제외) ──
+// ── 속도 제한 (채널별: 카카오 1분 10회, 웹·앱 20회 — 관리자 테스트 채팅은 제외) ──
 const hits = new Map<string, number[]>();
-const RATE_LIMIT = 10;
 
-export function rateLimited(key: string): boolean {
+export function rateLimited(key: string, limit = 10): boolean {
   const now = Date.now();
   const arr = (hits.get(key) || []).filter((t) => now - t < 60_000);
   arr.push(now);
   hits.set(key, arr);
-  return arr.length > RATE_LIMIT;
+  if (hits.size > 20000) hits.delete(hits.keys().next().value as string);
+  return arr.length > limit;
 }
 
 function system(text: string, quickReplies: string[] = DEFAULT_QUICK): AgentOutput {
   return { text, quickReplies, provider: 'SYSTEM', model: null, tokensIn: 0, tokensOut: 0, toolLogs: [] };
 }
 
-const HELP_TEXT = `안녕하세요! 셀러브릭스 셀러 비서예요\n주문·방송·정산·상품·고객 무엇이든 물어보세요. 리포트·엑셀, 방송 대본·상품 설명, 사진으로 상품 등록도 돼요.\n\n${MOCK_HELP}\n\n계정 연결: "연결 123456" / 해제: "연결 해제" / 상태: "연결 상태"`;
+const helpText = (view: ChannelView) =>
+  `안녕하세요! 셀러브릭스 AI 셀러 비서예요.\n주문·방송·정산·상품·고객 무엇이든 물어보세요. 리포트·엑셀, 방송 대본·상품 설명, 사진으로 상품 등록도 돼요.\n\n${MOCK_HELP}\n\n` +
+  (view === 'WEB' ? '계정 추가·해제: 오른쪽 위 메뉴 → 연결 계정' : '계정 연결: "연결 123456" / 해제: "연결 해제" / 상태: "연결 상태"');
 
-const LINK_HOWTO = '계정 연결 방법\n1. 셀러브릭스 셀러 관리자 화면 접속\n2. "카카오 챗봇 연결" 메뉴에서 6자리 코드 받기 (5분 유효)\n3. 이 채팅방에 "연결 123456" 처럼 보내기\n\n스튜디오 계정은 "스튜디오 연결 123456" 으로 연결해요. (스튜디오 배포 후 오픈)';
+const linkHowto = (view: ChannelView) =>
+  view === 'WEB'
+    ? '계정 연결 방법\n1. 셀러브릭스(또는 스튜디오) 셀러 관리자 화면 접속\n2. "AI 셀러 비서" 메뉴에서 6자리 코드 받기 (5분 유효)\n3. 오른쪽 위 메뉴 → 연결 계정 → 코드 입력\n\n여기에 "연결 123456" 처럼 보내도 돼요. 스튜디오는 "스튜디오 연결 123456"'
+    : '계정 연결 방법\n1. 셀러브릭스 셀러 관리자 화면 접속\n2. "AI 셀러 비서" 메뉴에서 6자리 코드 받기 (5분 유효)\n3. 이 채팅방에 "연결 123456" 처럼 보내기\n\n스튜디오 계정은 "스튜디오 연결 123456" 으로 연결해요.';
 
 const POSITIVE_FEEDBACK = '도움 됨';
 const NEGATIVE_FEEDBACK = '아쉬워요';
@@ -66,15 +73,15 @@ export function isInstantCommand(text: string): boolean {
   );
 }
 
-async function runCommand(botUserId: string, botUserKey: string, text: string): Promise<AgentOutput | null> {
+async function runCommand(botUserId: string, botUserKey: string, text: string, view: ChannelView): Promise<AgentOutput | null> {
   const t = text.replace(/\s+/g, ' ').trim();
   let m = t.match(/^(스튜디오\s*)?연결\s*(\d{6})$/);
   if (m) return system(await linkAccount(botUserId, botUserKey, m[1] ? 'STUDIO' : 'SELLERBRICKS', m[2]));
   m = t.match(/^(셀러브릭스\s*|스튜디오\s*)?연결\s*해제$/);
   if (m) return system(await unlinkAccount(botUserId, m[1]?.startsWith('스튜디오') ? 'STUDIO' : m[1] ? 'SELLERBRICKS' : undefined), ['연결 방법', '도움말']);
   if (/^(연결\s*(상태|확인)|내\s*계정)$/.test(t)) return system(await linkStatusText(botUserId));
-  if (/^연결\s*방법$/.test(t)) return system(LINK_HOWTO, ['도움말']);
-  if (/^(도움말|help|시작|메뉴|\?)$/i.test(t)) return system(HELP_TEXT);
+  if (/^연결\s*방법$/.test(t)) return system(linkHowto(view), ['도움말']);
+  if (/^(도움말|help|시작|메뉴|\?)$/i.test(t)) return system(helpText(view));
   if (FEEDBACK_RE.test(t)) {
     const positive = t === POSITIVE_FEEDBACK || t.startsWith('👍');
     const last = await prisma.chatLog.findFirst({ where: { botUserId, provider: { in: ['CLAUDE', 'GPT', 'MOCK'] } }, orderBy: { createdAt: 'desc' } });
@@ -89,9 +96,9 @@ async function loadPrefs(botUserId: string): Promise<Record<string, string>> {
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
 }
 
-/** 긴 답변(카카오 말풍선 한도 근처)은 전체 보기 페이지로 */
-async function attachLongText(out: AgentOutput, botUserId: string): Promise<AgentOutput> {
-  if (out.text.length <= 900 || out.link) return out;
+/** 긴 답변(카카오 말풍선 한도 근처)은 전체 보기 페이지로 — 웹·앱은 화면에 그대로 */
+async function attachLongText(out: AgentOutput, botUserId: string, limit: number | null): Promise<AgentOutput> {
+  if (limit === null || out.text.length <= limit || out.link) return out;
   const a = await createArtifact(botUserId, 'TEXT', { title: '답변 전체 보기', sections: [{ type: 'text', body: out.text }] });
   return { ...out, text: out.text.slice(0, 850) + '…\n\n(전체 내용은 아래 버튼으로 볼 수 있어요)', link: { label: '전체 보기', url: a.url } };
 }
@@ -99,7 +106,9 @@ async function attachLongText(out: AgentOutput, botUserId: string): Promise<Agen
 export interface HandleParams {
   botUserKey: string;
   text: string;
-  channel: 'KAKAO' | 'TEST';
+  channel: Exclude<ChannelKey, 'MCP'>;
+  /** 관리자 테스트 채팅에서 카카오/웹 모양 중 무엇으로 볼지 */
+  view?: ChannelView;
   images?: IncomingImage[];
   now?: Date;
 }
@@ -107,17 +116,19 @@ export interface HandleParams {
 export async function handleMessage(params: HandleParams): Promise<BotReply> {
   const started = Date.now();
   const text = (params.text || '').trim().slice(0, 500);
-  const user = await ensureBotUser(params.botUserKey);
+  const user = await ensureBotUser(params.botUserKey, params.channel === 'APP' ? 'WEB' : params.channel);
   const images = params.images ?? [];
+  const prof = profileOf(params.channel, params.view);
 
   let out: AgentOutput;
-  if (!text && !images.length) out = system(HELP_TEXT);
-  else if (params.channel === 'KAKAO' && rateLimited(params.botUserKey)) out = system('질문이 너무 빨라요. 1분 뒤에 다시 물어봐 주세요.', []);
+  if (user.blockedAt) out = system('이용이 제한된 계정이에요. 셀러브릭스 고객센터로 문의해 주세요.', []);
+  else if (!text && !images.length) out = system(helpText(prof.view));
+  else if (prof.ratePerMin !== null && rateLimited(params.botUserKey, prof.ratePerMin)) out = system('질문이 너무 빨라요. 1분 뒤에 다시 물어봐 주세요.', []);
   else {
     out =
-      (await runCommand(user.id, params.botUserKey, text)) ??
+      (await runCommand(user.id, params.botUserKey, text, prof.view)) ??
       (await (async () => {
-        const ctx: ToolContext = { now: params.now ?? new Date(), botUserId: user.id, links: await getLinks(user.id), prefs: await loadPrefs(user.id) };
+        const ctx: ToolContext = { now: params.now ?? new Date(), botUserId: user.id, links: await getLinks(user.id), prefs: await loadPrefs(user.id), view: prof.view, channel: params.channel };
         // 사진 상품 등록 흐름
         let tokens: string[] = [];
         if (images.length) {
@@ -137,7 +148,7 @@ export async function handleMessage(params: HandleParams): Promise<BotReply> {
       })());
   }
   if (out.provider !== 'SYSTEM' && out.toolLogs.length) out = { ...out, quickReplies: [...out.quickReplies.slice(0, 8), POSITIVE_FEEDBACK, NEGATIVE_FEEDBACK] };
-  out = await attachLongText(out, user.id);
+  out = await attachLongText(out, user.id, prof.longTextAt);
 
   const latencyMs = Date.now() - started;
   let chatLogId: string | undefined;
@@ -155,6 +166,7 @@ export async function handleMessage(params: HandleParams): Promise<BotReply> {
         tokensOut: out.tokensOut,
         error: out.error?.slice(0, 1000),
         checkWarn: out.checkWarn?.slice(0, 500),
+        extraJson: extraOf(out),
         tools: { create: out.toolLogs.map((l) => ({ tool: l.tool, argsJson: maskForLog(JSON.stringify(l.args)), ok: l.ok, ms: l.ms, error: l.error?.slice(0, 500) })) },
       },
     });
@@ -163,6 +175,12 @@ export async function handleMessage(params: HandleParams): Promise<BotReply> {
     /* 로그 실패는 응답에 영향 주지 않음 */
   }
   return { ...out, chatLogId, latencyMs };
+}
+
+/** 카드·버튼·링크를 저장해 두면 웹챗 대화 기록에서 그대로 다시 그릴 수 있다 */
+function extraOf(out: AgentOutput): string | null {
+  if (!out.card && !out.basicCard && !out.link && !out.quickReplies.length) return null;
+  return JSON.stringify({ card: out.card, basicCard: out.basicCard, link: out.link, quickReplies: out.quickReplies }).slice(0, 20000);
 }
 
 // ── [결과 보기] — 콜백 미승인 상태에서 4초를 넘긴 답을 저장했다가 전달 ──

@@ -43,7 +43,7 @@ check('카카오톡 공유 카드', newPage.body.includes('셀러의 하루, 대
 
 const state = (await app.inject({ method: 'GET', url: '/admin/api/state', headers: A })).json();
 check('키 없음 → 가짜 응답 모드', state.llm.effective === 'MOCK' && state.keys.anthropic.status === 'NONE');
-check('도구 19개 노출 (MCP 읽기 전용 표시 포함)', state.tools.length === 19 && state.tools.every((t: { annotations?: { readOnlyHint?: boolean } }) => typeof t.annotations?.readOnlyHint === 'boolean'), String(state.tools.length));
+check('도구 23개 노출 (스튜디오 4개 포함, MCP 읽기 전용 표시)', state.tools.length === 23 && state.tools.every((t: { annotations?: { readOnlyHint?: boolean } }) => typeof t.annotations?.readOnlyHint === 'boolean'), String(state.tools.length));
 
 // 3. 연결 전 질문
 const chat = async (text: string, user = 'selftest-user') => (await app.inject({ method: 'POST', url: '/admin/api/chat', headers: A, payload: { botUserKey: user, text } })).json();
@@ -128,7 +128,7 @@ check('키 삭제 → 가짜 응답 모드', st3.llm.effective === 'MOCK');
 
 // 9. 실제 모드 전환 검증
 check('실제 모드는 주소·키 필요', (await app.inject({ method: 'POST', url: '/admin/api/platform/sellerbricks', headers: A, payload: { mode: 'LIVE' } })).statusCode === 400);
-check('스튜디오는 배포 전 잠금', (await app.inject({ method: 'POST', url: '/admin/api/platform/studio', headers: A, payload: { mode: 'MOCK' } })).statusCode === 400);
+check('스튜디오 실제 모드는 주소·키 필요', (await app.inject({ method: 'POST', url: '/admin/api/platform/studio', headers: A, payload: { mode: 'LIVE' } })).statusCode === 400);
 
 
 // ═══════════════ 2-1차 ═══════════════
@@ -274,6 +274,149 @@ for (let i = 0; i < 12; i++) {
   if (res.template?.outputs?.[0]?.simpleText?.text?.includes('너무 빨라요')) limited = true;
 }
 check('카카오 속도 제한(1분 10회)', limited);
+
+// ═══ 3차: 웹챗 · 앱 · 시작 페이지 · 스튜디오 · 알림 · 운영 · MCP ═══
+const H = { 'x-requested-with': 'sbchat' };
+const cookieOf = (res: { headers: Record<string, unknown> }) => String(res.headers['set-cookie'] || '').split(';')[0];
+const post = (url: string, payload: unknown, headers: Record<string, string> = A) => app.inject({ method: 'POST', url, headers, payload: payload as object });
+
+// 시작 페이지
+const startPage = await app.inject({ method: 'GET', url: '/' });
+check('시작 페이지 (/)', startPage.statusCode === 200 && startPage.body.includes('id="channels"') && !startPage.body.includes('{{START_CONFIG}}') && String(startPage.headers['content-security-policy']).includes("default-src 'self'"));
+check('시작 페이지 QR(웹챗)', (await app.inject({ method: 'GET', url: '/start/qr.svg?for=web' })).body.startsWith('<svg'));
+check('카카오 채널 주소 형식 검사', (await post('/admin/api/channels', { kakaoUrl: 'https://example.com/x' })).statusCode === 400);
+await post('/admin/api/channels', { kakaoUrl: 'http://pf.kakao.com/_testCh' });
+const sc = (await app.inject({ method: 'GET', url: '/start/config' })).json();
+check('시작 페이지 카카오 바로가기', sc.kakao?.chat === 'http://pf.kakao.com/_testCh/chat' && sc.kakao?.add === 'http://pf.kakao.com/_testCh/friend' && sc.app === null);
+
+// APK 올리기 · 내려받기
+const fakeApk = Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(4096, 1)]);
+check('APK 아닌 파일 거부', (await app.inject({ method: 'POST', url: '/admin/api/channels/apk?version=0.0.1', headers: { ...A, 'content-type': 'application/vnd.android.package-archive' }, payload: Buffer.alloc(4096, 2) })).statusCode === 400);
+const up = await app.inject({ method: 'POST', url: '/admin/api/channels/apk?version=1.2.3', headers: { ...A, 'content-type': 'application/vnd.android.package-archive' }, payload: fakeApk });
+check('APK 올리기', up.statusCode === 200 && up.json().version === '1.2.3');
+check('앱 꺼져 있으면 내려받기 404', (await app.inject({ method: 'GET', url: '/download/app.apk' })).statusCode === 404);
+await post('/admin/api/channels', { appEnabled: true });
+const dl = await app.inject({ method: 'GET', url: '/download/app.apk' });
+check('APK 내려받기', dl.statusCode === 200 && dl.headers['content-type'] === 'application/vnd.android.package-archive' && dl.rawPayload.length === fakeApk.length);
+check('시작 페이지에 앱 버튼', (await app.inject({ method: 'GET', url: '/start/config' })).json().app?.version === '1.2.3');
+
+// 웹챗 화면·보안
+const chatPage = await app.inject({ method: 'GET', url: '/chat' });
+check('웹챗 화면 + 보안 헤더', chatPage.statusCode === 200 && chatPage.body.includes('AI 셀러 비서') && String(chatPage.headers['content-security-policy']).includes("frame-ancestors 'none'"));
+const loginArt = await app.inject({ method: 'GET', url: '/assets/seller-login.webp' });
+check('관리자·웹챗 로그인 이미지', newPage.body.includes('/assets/seller-login.webp') && chatPage.body.includes('/assets/seller-login.webp') && loginArt.statusCode === 200 && loginArt.headers['content-type'] === 'image/webp');
+check('웹챗 PWA 설정', (await app.inject({ method: 'GET', url: '/chat/manifest.webmanifest' })).json().start_url.startsWith('/chat') && (await app.inject({ method: 'GET', url: '/chat/sw.js' })).headers['service-worker-allowed'] === '/chat');
+check('웹챗 로그인 전', (await app.inject({ method: 'GET', url: '/chat/api/me' })).json().loggedIn === false);
+check('위조 요청 차단(헤더 없음)', (await app.inject({ method: 'POST', url: '/chat/api/login', payload: { code: '123456' } })).statusCode === 403);
+check('웹챗 틀린 코드 거부', (await post('/chat/api/login', { platform: 'SELLERBRICKS', code: '000000' }, H)).statusCode === 400);
+check('로그인 없이 질문 거부', (await post('/chat/api/message', { text: '오늘 주문' }, H)).statusCode === 401);
+const wcode = (await post('/admin/api/mock/link-code', { accountId: 'mock-seller-2' })).json().code;
+const wl = await post('/chat/api/login', { platform: 'SELLERBRICKS', code: wcode }, H);
+const W = { ...H, cookie: cookieOf(wl) };
+check('웹챗 6자리 코드 로그인', wl.statusCode === 200 && W.cookie.startsWith('sb_chat=') && String(wl.headers['set-cookie']).includes('HttpOnly'));
+const wme = (await app.inject({ method: 'GET', url: '/chat/api/me', headers: W })).json();
+check('웹챗 로그인 상태·연결 계정', wme.loggedIn === true && wme.links.length === 1 && wme.links[0].platform === 'SELLERBRICKS' && wme.kakao?.chat);
+let wr = (await post('/chat/api/message', { text: '오늘 주문 정리해줘' }, W)).json();
+check('웹챗 질문 → 답변', wr.text.includes('주문') && wr.canRate === true && !wr.quickReplies.includes('도움 됨'));
+const wlong = (await post('/chat/api/message', { text: '이번 달 매출 리포트 만들어줘' }, W)).json();
+check('웹챗 결과물 링크', !!(wlong.link?.url || wlong.card?.button?.url));
+const wh = (await app.inject({ method: 'GET', url: '/chat/api/history', headers: W })).json();
+check('웹챗 대화 기록 (카드 포함)', wh.items.length === 2 && wh.items[0].user === '오늘 주문 정리해줘' && !!wh.items[0].bot.card);
+check('웹챗 피드백', (await post('/chat/api/feedback', { id: wr.id, value: 1 }, W)).json().ok === true);
+const reo = (await post('/chat/api/artifact/reopen', { url: wlong.link?.url || wlong.card?.button?.url }, W)).json();
+check('결과물 다시 열기(본인 것)', typeof reo.url === 'string' && reo.url.includes('/r/'));
+check('웹챗 help 는 웹 안내', (await post('/chat/api/message', { text: '도움말' }, W)).json().text.includes('오른쪽 위 메뉴'));
+// 같은 계정으로 다른 기기에서 로그인 → 같은 대화 기록
+const wcode2 = (await post('/admin/api/mock/link-code', { accountId: 'mock-seller-2' })).json().code;
+const wl2 = await post('/chat/api/login', { platform: 'SELLERBRICKS', code: wcode2 }, { ...H, 'user-agent': 'Mozilla/5.0 (Linux; Android 14) SellerbricksBotApp/1.0' });
+const W2 = { ...H, cookie: cookieOf(wl2), 'user-agent': 'Mozilla/5.0 (Linux; Android 14) SellerbricksBotApp/1.0' };
+const wh2 = (await app.inject({ method: 'GET', url: '/chat/api/history', headers: W2 })).json();
+check('다른 기기(앱) 로그인 → 같은 대화 기록', wh2.items.length >= 3 && (await app.inject({ method: 'GET', url: '/chat/api/me', headers: W2 })).json().client === 'APP');
+await post('/chat/api/message', { text: '송장 안 넣은 주문' }, W2);
+const appLog = (await app.inject({ method: 'GET', url: '/admin/api/logs', headers: A })).json();
+check('앱 대화는 APP 채널로 기록', appLog.some((l: { channel: string }) => l.channel === 'APP'));
+
+// 스튜디오 (가짜 데이터)
+check('스튜디오 꺼짐이면 연결 안내', (await post('/chat/api/link', { platform: 'STUDIO', code: '123456' }, W)).json().error?.includes('배포 후'));
+await post('/admin/api/platform/studio', { mode: 'MOCK' });
+const scode = (await post('/admin/api/mock/link-code', { accountId: 'mock-studio-1', platform: 'STUDIO' })).json().code;
+check('웹챗에서 스튜디오 계정 추가', (await post('/chat/api/link', { platform: 'STUDIO', code: scode }, W)).json().ok === true);
+wr = (await post('/chat/api/message', { text: '수요일 화장품 방송 가능한 스튜디오 추천해줘' }, W)).json();
+check('스튜디오 시설 찾기 (수요일·코스메틱)', /\(수\)/.test(wr.text) && wr.text.includes('코스메틱') && !!wr.card?.items?.length);
+wr = (await post('/chat/api/message', { text: '내 스튜디오 예약 보여줘' }, W)).json();
+check('내 스튜디오 예약', wr.text.includes('스튜디오 예약'));
+wr = (await post('/chat/api/message', { text: '스튜디오 주문 이번 달' }, W)).json();
+check('스튜디오 주문은 따로 표시', wr.text.includes('[스튜디오 주문]'));
+const { resolveDate } = await import('../src/tools/studio.js');
+check('요일 → 날짜 계산', resolveDate('수요일', new Date('2026-11-13T03:00:00Z')) === '2026-11-18' && resolveDate('내일', new Date('2026-11-13T03:00:00Z')) === '2026-11-14');
+const ss = (await app.inject({ method: 'GET', url: '/admin/api/state', headers: A })).json();
+check('관리자 상태에 스튜디오 샘플 셀러', ss.mockStudioSellers.length === 2 && ss.platforms.studio.mode === 'MOCK');
+
+// 알림
+const pv = (await post('/admin/api/notify/preview', { kind: 'MORNING', botUserKey: 'selftest-user' })).json();
+check('알림 미리보기(아침 요약)', pv.title?.includes('요약') || pv.empty === true);
+const nr = (await post('/admin/api/notify/run', {})).json();
+check('알림 실행 → 생성', nr.created >= 1 && nr.errors === 0, JSON.stringify(nr.byKind));
+const nr2 = (await post('/admin/api/notify/run', {})).json();
+check('같은 알림은 하루 1번', nr2.created === 0);
+const nl = (await app.inject({ method: 'GET', url: '/chat/api/notifications', headers: W })).json();
+check('웹챗 알림함', nl.length >= 1 && nl[0].read === false && (await app.inject({ method: 'GET', url: '/chat/api/me', headers: W })).json().unread >= 1);
+await post('/chat/api/notifications/read', {}, W);
+check('알림 읽음 처리', (await app.inject({ method: 'GET', url: '/chat/api/me', headers: W })).json().unread === 0);
+await post('/chat/api/prefs', { key: 'UNPAID', on: false }, W);
+check('셀러별 알림 끄기', (await app.inject({ method: 'GET', url: '/chat/api/prefs', headers: W })).json().kinds.find((k: { key: string }) => k.key === 'UNPAID').on === false);
+
+// 비용 (⑤)
+const { pickModel } = await import('../src/agent/agent.js');
+const llmLike = { claudeModel: 'main', gptModel: 'gmain' };
+const costLike = { autoModel: true, claudeLight: 'light', gptLight: 'glight' };
+check('짧은 질문은 가벼운 모델', pickModel('CLAUDE', '오늘 주문', llmLike, costLike) === 'light' && pickModel('CLAUDE', '방송 대본 써줘', llmLike, costLike) === 'main' && pickModel('GPT', '정산', llmLike, { ...costLike, autoModel: false }) === 'gmain');
+check('비용 설정 저장', (await post('/admin/api/cost', { dailyPerUser: 50 })).json().cost.dailyPerUser === 50);
+
+// 채널 끄기
+await post('/admin/api/channels', { webEnabled: false, kakaoEnabled: false });
+check('웹챗 끄면 질문 503', (await post('/chat/api/message', { text: '오늘 주문' }, W)).statusCode === 503 && (await app.inject({ method: 'GET', url: '/chat/api/me' })).json().webEnabled === false);
+check('카카오 끄면 웹챗 안내', (await skill('오늘 주문')).json().template.outputs[0].simpleText.text.includes('쉬고 있어요'));
+await post('/admin/api/channels', { webEnabled: true, kakaoEnabled: true });
+
+// MCP (외부 AI)
+const mcpCall = (body: unknown, headers: Record<string, string> = {}) => app.inject({ method: 'POST', url: '/mcp', headers: { 'content-type': 'application/json', ...headers }, payload: body as object });
+check('MCP 꺼짐 → 503', (await mcpCall({ jsonrpc: '2.0', id: 1, method: 'ping' })).statusCode === 503);
+await post('/admin/api/mcp', { enabled: true });
+check('MCP 토큰 없음 → 401', (await mcpCall({ jsonrpc: '2.0', id: 1, method: 'ping' })).statusCode === 401);
+const mcpUsers = (await app.inject({ method: 'GET', url: '/admin/api/mcp', headers: A })).json().users;
+const webUser = mcpUsers.find((u: { channel: string }) => u.channel === 'WEB');
+const tok = (await post('/admin/api/mcp/tokens', { userId: webUser.id, label: 'selftest' })).json().token as string;
+const MT = { authorization: `Bearer ${tok}` };
+check('MCP 토큰 발급', tok.startsWith('sbmcp_'));
+const init = (await mcpCall({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } }, MT)).json();
+check('MCP initialize', init.result?.protocolVersion === '2025-06-18' && init.result.capabilities.tools && init.result.serverInfo.name === 'sellerbricks-bot');
+check('MCP 알림 메시지 → 202', (await mcpCall({ jsonrpc: '2.0', method: 'notifications/initialized' }, MT)).statusCode === 202);
+const tl = (await mcpCall({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, MT)).json();
+check('MCP tools/list (셀러브릭스+스튜디오)', tl.result.tools.length === 23 && tl.result.tools.every((t: { inputSchema?: unknown }) => !!t.inputSchema));
+const tc = (await mcpCall({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'get_unpaid_orders', arguments: {} } }, MT)).json();
+check('MCP tools/call', tc.result?.isError === false && tc.result.content[0].text.length > 10 && !!tc.result.structuredContent);
+check('MCP 없는 도구 거부', (await mcpCall({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'drop_db', arguments: {} } }, MT)).json().error?.code === -32602);
+check('MCP 브라우저 요청 차단', (await mcpCall({ jsonrpc: '2.0', id: 5, method: 'ping' }, { ...MT, origin: 'https://evil.example' })).statusCode === 403);
+const mcpLog = (await app.inject({ method: 'GET', url: '/admin/api/logs', headers: A })).json();
+check('MCP 호출 기록', mcpLog.some((l: { channel: string }) => l.channel === 'MCP'));
+
+// 운영 (⑧)
+const ops = (await app.inject({ method: 'GET', url: '/admin/api/ops', headers: A })).json();
+check('운영 대시보드 채널별 집계', ops.channels.find((c: { channel: string }) => c.channel === 'WEB').month >= 3 && ops.audits.length > 0);
+const users = (await app.inject({ method: 'GET', url: '/admin/api/users', headers: A })).json();
+const wu = users.find((u: { channel: string; links: unknown[] }) => u.channel === 'WEB' && u.links.length);
+await post(`/admin/api/users/${wu.id}/block`, { reason: 'selftest' });
+check('셀러 차단 → 웹 세션 끊김·MCP 차단', (await post('/chat/api/message', { text: '오늘 주문' }, W)).statusCode === 401 && (await mcpCall({ jsonrpc: '2.0', id: 6, method: 'ping' }, MT)).statusCode === 401);
+await post(`/admin/api/users/${wu.id}/unblock`, {});
+const cl = (await post('/admin/api/ops/cleanup', {})).json();
+check('기록 정리 실행', typeof cl.chatLogs === 'number');
+check('세션 목록', Array.isArray((await app.inject({ method: 'GET', url: '/admin/api/sessions', headers: A })).json()));
+check('약한 비밀번호 거부', (await post('/admin/api/password', { current: config.adminPassword, next: 'short' })).statusCode === 400);
+check('현재 비밀번호 틀림 거부', (await post('/admin/api/password', { current: 'wrong-pass', next: 'NewPass12345' })).statusCode === 400);
+check('비밀번호 변경', (await post('/admin/api/password', { current: config.adminPassword, next: 'NewPass12345' })).statusCode === 200);
+check('변경 후 기존 로그인 풀림', (await app.inject({ method: 'GET', url: '/admin/api/state', headers: A })).statusCode === 401);
+check('새 비밀번호로 로그인', (await post('/admin/api/login', { password: 'NewPass12345' }, {})).statusCode === 200 && (await post('/admin/api/login', { password: config.adminPassword }, {})).statusCode === 401);
 
 await app.close();
 console.log(`\n결과: ${pass} 통과 / ${fail} 실패`);

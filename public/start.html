@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AI 셀러 비서 · 셀러브릭스</title>
+  <meta name="description" content="카카오톡, 웹, 안드로이드 앱 중 편한 곳에서 셀러브릭스 AI 셀러 비서를 쓰세요">
+  <meta name="theme-color" content="#17634c">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="셀러브릭스">
+  <meta property="og:title" content="AI 셀러 비서 | 셀러의 하루, 대화로 정리하다">
+  <meta property="og:description" content="주문·정산·방송·스튜디오를 대화로. 카카오톡·웹·앱 중 편한 곳에서">
+  <meta property="og:url" content="{{PUBLIC_ORIGIN}}/">
+  <meta property="og:image" content="{{PUBLIC_ORIGIN}}/assets/share-card.jpg">
+  <link rel="icon" href="/assets/app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="/assets/start.css">
+  <script defer src="/assets/start.js"></script>
+</head>
+<body data-config="{{START_CONFIG}}">
+  <header class="nav">
+    <div class="nav-inner">
+      <a class="brand" href="/"><img src="/assets/app-icon.svg" alt="" width="34" height="34"><span>Sellerbricks</span></a>
+      <a class="nav-cta" href="/chat" id="navChat" hidden>웹챗 열기</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <p class="eyebrow">AI 셀러 비서</p>
+        <h1>셀러의 하루,<br><em>대화로 정리하다</em></h1>
+        <p class="lead">오늘 주문부터 이번 달 정산, 방송 실적과 스튜디오 예약까지. 궁금한 내용을 대화로 확인하세요.</p>
+        <a class="hero-link" href="#channels">이용 채널 보기<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-5-5 5 5 5-5"/></svg></a>
+        <p class="notice" id="notice" role="status" hidden></p>
+      </div>
+      <div class="hero-image"><img src="/assets/seller-login.webp" alt="" width="1050" height="1312"></div>
+    </section>
+
+    <section class="choose" id="channels" aria-labelledby="chooseTitle">
+      <h2 id="chooseTitle">이용 채널</h2>
+
+      <div class="options">
+        <article class="option kakao" id="optKakao" hidden>
+          <div class="opt-top">
+            <span class="opt-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4C7 4 3 7.1 3 11c0 2.5 1.7 4.7 4.2 5.9L6.5 20l3.7-2.4c.6.1 1.2.1 1.8.1 5 0 9-3.1 9-7s-4-6.7-9-6.7Z"/></svg></span>
+          </div>
+          <h3>카카오톡</h3>
+          <p>카카오톡에서 셀러브릭스 채널을 추가하고 질문하세요.</p>
+          <div class="opt-actions">
+            <a class="btn btn-kakao" id="kakaoChat" target="_blank" rel="noopener">카카오톡 채팅 열기</a>
+            <a class="btn btn-line" id="kakaoAdd" target="_blank" rel="noopener">채널 추가</a>
+          </div>
+          <button class="qr-toggle" type="button" data-qr="kakao">휴대폰으로 QR 찍기</button>
+        </article>
+
+        <article class="option web" id="optWeb" hidden>
+          <div class="opt-top">
+            <span class="opt-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8 8 0 0 1-8 8H9l-5 2v-5a8 8 0 0 1 7-13h2a8 8 0 0 1 8 8Z"/><path d="M8.5 10h7m-7 4h4.5"/></svg></span>
+          </div>
+          <h3>웹챗</h3>
+          <p>PC와 휴대폰에서 질문하고 표, 차트, 사진을 확인하세요.</p>
+          <div class="opt-actions">
+            <a class="btn btn-primary" id="webOpen" href="/chat">웹챗 열기</a>
+            <button class="btn btn-line" type="button" id="webCopy">링크 복사</button>
+          </div>
+          <button class="qr-toggle" type="button" data-qr="web">휴대폰으로 QR 찍기</button>
+        </article>
+
+        <article class="option app" id="optApp" hidden>
+          <div class="opt-top">
+            <span class="opt-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></span>
+            <span class="badge" id="appVer">안드로이드</span>
+          </div>
+          <h3>안드로이드 앱</h3>
+          <p>홈 화면에서 웹챗을 열고 알림을 확인하세요.</p>
+          <div class="opt-actions">
+            <a class="btn btn-dark" id="appDownload">APK 내려받기</a>
+          </div>
+          <button class="qr-toggle" type="button" data-qr="app">휴대폰으로 QR 찍기</button>
+          <details class="howto">
+            <summary>설치 방법</summary>
+            <ol>
+              <li>휴대폰에서 [APK 내려받기]를 눌러요.</li>
+              <li>"이 유형의 파일은 기기에 해를 끼칠 수 있습니다" 안내가 나오면 [다운로드]를 눌러요.</li>
+              <li>내려받은 파일을 열고, "출처를 알 수 없는 앱" 설치를 이번 한 번만 허용해요.</li>
+              <li>설치가 끝나면 앱을 열고 6자리 연결 코드로 로그인해요.</li>
+            </ol>
+          </details>
+        </article>
+      </div>
+
+      <p class="ios-tip" id="iosTip">아이폰은 웹챗을 Safari로 연 뒤 <b>공유 → 홈 화면에 추가</b>하면 앱처럼 쓸 수 있어요.</p>
+    </section>
+
+    <section class="features" aria-labelledby="featTitle">
+      <h2 id="featTitle">할 수 있는 일</h2>
+      <div class="feat"><b>주문·미입금·송장</b><span>오늘 주문 정리, 입금 안 된 주문, 송장 지연까지</span></div>
+      <div class="feat"><b>정산·출금</b><span>이번 달 정산 예정액, 출금 가능 금액</span></div>
+      <div class="feat"><b>방송·리포트</b><span>방송별 실적, 표·차트 리포트와 엑셀</span></div>
+      <div class="feat"><b>스튜디오 예약</b><span>원하는 날 비어 있는 스튜디오·창고 찾기</span></div>
+      <div class="feat"><b>글쓰기</b><span>방송 대본, 상품 설명, 리뷰 답변, 공지</span></div>
+      <div class="feat"><b>사진으로 상품 등록</b><span>사진 + "32000원 20개"면 상품 초안 완성</span></div>
+    </section>
+
+    <section class="start-steps">
+      <h2>시작하는 방법</h2>
+      <ol>
+        <li><span>1</span><div><b>코드 받기</b><p>셀러브릭스(또는 스튜디오) 셀러 관리자 화면 → <b>AI 셀러 비서</b> 메뉴에서 6자리 코드를 받아요.</p></div></li>
+        <li><span>2</span><div><b>입력하기</b><p>카카오톡은 채팅방에 "연결 123456", 웹·앱은 첫 화면에 6자리를 입력해요.</p></div></li>
+        <li><span>3</span><div><b>물어보기</b><p>"오늘 주문 정리해줘"부터 시작해 보세요.</p></div></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="foot">© 셀러브릭스 · 주식회사 이십세기 소년들</footer>
+
+  <dialog id="qrDialog" class="qr-dialog">
+    <form method="dialog"><button class="close" aria-label="닫기">×</button></form>
+    <h3 id="qrTitle">휴대폰으로 찍어 보세요</h3>
+    <img id="qrImg" alt="QR 코드" width="220" height="220">
+    <p id="qrUrl" class="qr-url"></p>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

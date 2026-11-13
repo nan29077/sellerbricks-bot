@@ -17,27 +17,33 @@
   <meta property="og:image:alt" content="셀러의 하루, 대화로 정리하다. 말풍선과 배송 상자를 담은 셀러브릭스 공유 이미지">
   <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/admin.css">
+  <link rel="stylesheet" href="/assets/auth.css">
   <script defer src="/assets/admin.js"></script>
+  <script defer src="/assets/admin-ext.js"></script>
 </head>
 <body>
   <main id="login" class="login-page hidden">
-    <div class="login-wrap">
-      <a class="brand login-brand" href="/admin">
-        <img src="/assets/logo.svg" alt="" width="38" height="38"><span>Sellerbricks</span>
-      </a>
-      <section class="login-card" aria-labelledby="loginTitle">
-        <h1 id="loginTitle">관리자 로그인</h1>
-        <p>셀러브릭스 챗봇을 관리하려면 로그인하세요.</p>
-        <form id="loginForm">
-          <label for="pw">비밀번호</label>
-          <div class="password-field">
-            <input type="password" id="pw" placeholder="관리자 비밀번호 입력" autocomplete="current-password" required>
-            <button class="icon-button" id="showPassword" type="button" aria-label="비밀번호 표시" data-icon="eye"></button>
-          </div>
-          <p id="loginErr" class="form-error" role="alert"></p>
-          <button id="loginButton" class="primary login-button" type="submit">로그인</button>
-        </form>
+    <div class="auth-layout">
+      <section class="auth-panel" aria-labelledby="loginTitle">
+        <a class="auth-brand" href="/" aria-label="Sellerbricks 시작 페이지">
+          <img src="/assets/logo.svg" alt="" width="36" height="36"><span>Sellerbricks</span>
+        </a>
+        <div class="login-card">
+          <h1 id="loginTitle">관리자 로그인</h1>
+          <p>챗봇 운영과 서비스 설정을 관리하세요.</p>
+          <form id="loginForm">
+            <label for="pw">비밀번호</label>
+            <div class="password-field">
+              <input type="password" id="pw" placeholder="관리자 비밀번호 입력" autocomplete="current-password" required>
+              <button class="icon-button" id="showPassword" type="button" aria-label="비밀번호 표시" data-icon="eye"></button>
+            </div>
+            <p id="loginErr" class="form-error" role="alert"></p>
+            <button id="loginButton" class="primary login-button" type="submit">로그인</button>
+          </form>
+        </div>
+        <a class="auth-foot login-back" href="/">시작 페이지로 돌아가기</a>
       </section>
+      <div class="auth-art"><img src="/assets/seller-login.webp" width="1050" height="1312" alt=""></div>
     </div>
   </main>
 
@@ -51,6 +57,9 @@
         <a href="#overview"><span data-icon="grid"></span>대시보드</a>
         <a href="#ai"><span data-icon="sliders"></span>AI 설정</a>
         <a href="#connections"><span data-icon="link"></span>서비스 연결</a>
+        <a href="#channels"><span data-icon="share"></span>채널 · 앱</a>
+        <a href="#ops"><span data-icon="spark"></span>운영 · 알림</a>
+        <a href="#mcp"><span data-icon="box"></span>외부 AI(MCP)</a>
         <a href="#activity"><span data-icon="list"></span>사용자 · 로그</a>
         <a href="#test-chat"><span data-icon="chat"></span>테스트 채팅</a>
       </nav>
@@ -147,7 +156,19 @@
                 <div class="field"><label for="sbKey">서명 키 <span id="sbKeyCur" class="muted"></span></label><input type="password" id="sbKey" placeholder="변경할 때만 입력" autocomplete="off"></div>
                 <div class="actions form-actions"><button class="primary" type="submit">플랫폼 설정 저장</button><span id="sbMsg" class="muted" role="status"></span></div>
               </form>
-              <div class="split studio"><h4>셀러브릭스 스튜디오</h4><span class="badge b-off">연동 준비 중</span></div>
+              <form id="studioForm" class="studio-form">
+                <div class="split studio"><h4>셀러브릭스 스튜디오</h4><span class="badge" id="stBadge"></span></div>
+                <fieldset class="radio-group">
+                  <legend class="visually-hidden">스튜디오 연동 모드</legend>
+                  <label><input type="radio" name="stm" value="MOCK">샘플 데이터</label>
+                  <label><input type="radio" name="stm" value="LIVE">실제 API</label>
+                  <label><input type="radio" name="stm" value="OFF">꺼짐</label>
+                </fieldset>
+                <div class="field"><label for="stUrl">API 주소</label><input type="url" id="stUrl" placeholder="https://studio.sellerbricks.co.kr"></div>
+                <div class="field"><label for="stKey">서명 키 <span id="stKeyCur" class="muted"></span></label><input type="password" id="stKey" placeholder="변경할 때만 입력" autocomplete="off"></div>
+                <div class="actions form-actions"><button class="primary" type="submit">스튜디오 설정 저장</button><span id="stMsg" class="muted" role="status"></span></div>
+                <p class="muted">스튜디오 실서버 배포 전에는 "샘플 데이터"로 시험하세요. 꺼짐이면 셀러에게 스튜디오 연결이 보이지 않아요.</p>
+              </form>
             </section>
             <section class="card">
               <div class="card-title"><span class="section-icon" data-icon="chat"></span><h3>카카오 스킬 주소</h3></div>
@@ -161,6 +182,115 @@
               <p id="shareMsg" class="muted feedback" role="status"></p>
             </section>
           </div>
+        </section>
+
+        <section id="channels" class="section" aria-labelledby="channelsTitle">
+          <div class="section-heading"><h2 id="channelsTitle">채널 · 앱</h2><p>셀러가 시작 페이지에서 카카오 채널 · 웹챗 · 안드로이드 앱 중 골라 씁니다.</p></div>
+          <div class="section-grid">
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="share"></span><h3>시작 페이지 · 채널 켜기</h3></div>
+              <div class="input-row"><input type="text" id="startUrl" readonly class="mono" aria-label="시작 페이지 주소"><button type="button" id="copyStart"><span data-icon="copy"></span>복사</button><a class="button" id="openStart" target="_blank" rel="noopener">열기</a></div>
+              <form id="channelForm">
+                <div class="toggles">
+                  <label class="toggle"><input type="checkbox" id="chKakao"><span><b>카카오 채널</b><small>카톡 채팅방에서 사용</small></span></label>
+                  <label class="toggle"><input type="checkbox" id="chWeb"><span><b>웹챗</b><small id="webUrlNote">/chat</small></span></label>
+                  <label class="toggle"><input type="checkbox" id="chApp"><span><b>안드로이드 앱</b><small>APK를 올리면 내려받기 버튼이 보여요</small></span></label>
+                </div>
+                <div class="field"><label for="kakaoUrl">카카오 채널 주소 <span class="muted">(채널 관리자센터 → 채널 URL, 예: http://pf.kakao.com/_abcd)</span></label><input type="url" id="kakaoUrl" placeholder="http://pf.kakao.com/_xxxx"></div>
+                <div class="field"><label for="startNotice">시작 페이지 안내 문구 <span class="muted">(비우면 안 보임)</span></label><input type="text" id="startNotice" maxlength="200" placeholder="예: 11월 20일 새벽 2시~3시 점검"></div>
+                <div class="actions form-actions"><button class="primary" type="submit">채널 설정 저장</button><span id="channelMsg" class="muted" role="status"></span></div>
+              </form>
+            </section>
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="box"></span><h3>안드로이드 앱(APK)</h3></div>
+              <p class="description" id="apkState">올린 APK가 없습니다.</p>
+              <form id="apkForm">
+                <div class="field"><label for="apkFile">APK 파일 <span class="muted">(5_build_apk.bat 로 만든 파일, 200MB 이하)</span></label><input type="file" id="apkFile" accept=".apk,application/vnd.android.package-archive"></div>
+                <div class="field"><label for="apkVersion">버전</label><input type="text" id="apkVersion" maxlength="20" placeholder="예: 1.0.0"></div>
+                <div class="field"><label for="apkNote">변경 내용 <span class="muted">(선택)</span></label><input type="text" id="apkNote" maxlength="200"></div>
+                <div class="actions form-actions"><button class="primary" type="submit">APK 올리기</button><span id="apkMsg" class="muted" role="status"></span></div>
+              </form>
+              <details class="mini-details"><summary>외부 주소로 배포 (선택)</summary>
+                <div class="field"><label for="apkExternal">외부 APK 주소 <span class="muted">(https, 입력하면 업로드 파일 대신 이 주소로 이동)</span></label><div class="input-row"><input type="url" id="apkExternal" placeholder="https://…/app.apk"><button type="button" id="saveExternal">저장</button></div></div>
+              </details>
+            </section>
+          </div>
+          <details id="sessionsPanel" class="card disclosure-card"><summary><span data-icon="users"></span>웹챗 · 앱 로그인 세션<span class="chevron" data-icon="chevron"></span></summary>
+            <div class="disclosure-body"><button type="button" id="refreshSessions"><span data-icon="refresh"></span>새로고침</button><div id="sessions" class="table-wrap"></div></div>
+          </details>
+        </section>
+
+        <section id="ops" class="section" aria-labelledby="opsTitle">
+          <div class="section-heading"><h2 id="opsTitle">운영 · 알림</h2><p>채널별 사용량, 비용 한도, 알림 발송, 품질 점검, 기록 정리를 관리합니다.</p></div>
+          <div class="stats" id="channelStats"></div>
+          <p class="usage-detail muted" id="opsDetail"></p>
+          <div class="section-grid">
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="sliders"></span><h3>비용 · 성능</h3></div>
+              <form id="costForm">
+                <div class="field"><label for="dailyPerUser">셀러 1명당 하루 AI 질문 한도 <span class="muted">(0이면 제한 없음)</span></label><input type="number" id="dailyPerUser" min="0"></div>
+                <label class="toggle compact"><input type="checkbox" id="autoModel"><span><b>짧은 질문은 가벼운 모델로</b><small>글쓰기·리포트·분석은 기본 모델 유지</small></span></label>
+                <div class="field"><label for="claudeLight">가벼운 Claude 모델</label><input type="text" id="claudeLight"></div>
+                <div class="field"><label for="gptLight">가벼운 GPT 모델</label><input type="text" id="gptLight"></div>
+                <div class="field"><label for="maxConcurrent">동시에 처리할 AI 질문 수</label><input type="number" id="maxConcurrent" min="1" max="50"></div>
+                <div class="actions form-actions"><button class="primary" type="submit">저장</button><span id="costMsg" class="muted" role="status"></span></div>
+              </form>
+            </section>
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="spark"></span><h3>알림 엔진</h3></div>
+              <form id="notifyForm">
+                <label class="toggle compact"><input type="checkbox" id="nfEnabled"><span><b>알림 켜기</b><small>5분마다 확인해서 보낼 알림을 만듭니다</small></span></label>
+                <div class="field"><label for="nfHour">아침 요약 시각 (한국 시간)</label><input type="number" id="nfHour" min="0" max="23"></div>
+                <div class="toggles small" id="nfKinds"></div>
+                <div class="field"><label for="nfKakao">카카오 사용자 알림</label><select id="nfKakao"><option value="MOCK">가짜 발송 (기록만 — 알림톡 연동 전)</option><option value="OFF">보내지 않음</option></select></div>
+                <div class="actions form-actions"><button class="primary" type="submit">저장</button><button type="button" id="nfRun">지금 한 번 실행</button><span id="nfMsg" class="muted" role="status"></span></div>
+              </form>
+              <div class="field"><label for="nfPreviewKind">미리보기 <span class="muted">(테스트 채팅 사용자 기준, 저장 안 함)</span></label><div class="input-row"><select id="nfPreviewKind"></select><button type="button" id="nfPreview">미리보기</button></div></div>
+              <pre id="nfPreviewOut" class="preview" hidden></pre>
+            </section>
+          </div>
+          <details class="card disclosure-card" id="notifyPanel"><summary><span data-icon="list"></span>최근 알림<span class="chevron" data-icon="chevron"></span></summary><div class="disclosure-body table-wrap" id="notifyList"></div></details>
+          <details class="card disclosure-card" id="qualityPanel"><summary><span data-icon="chat"></span>품질 점검 (아쉬워요 · 숫자 경고 · 오류)<span class="chevron" data-icon="chevron"></span></summary>
+            <div class="disclosure-body"><div class="actions"><button type="button" data-q="down">아쉬워요</button><button type="button" data-q="warn">숫자 경고</button><button type="button" data-q="error">오류</button></div><div id="qualityList" class="table-wrap"></div></div>
+          </details>
+          <div class="section-grid">
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="trash"></span><h3>기록 정리</h3></div>
+              <p class="description" id="cleanupState"></p>
+              <div class="actions form-actions"><button type="button" id="runCleanup">지금 정리</button><span id="cleanupMsg" class="muted" role="status"></span></div>
+            </section>
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="key"></span><h3>관리자 비밀번호 변경</h3></div>
+              <form id="pwForm">
+                <div class="field"><label for="pwCur">현재 비밀번호</label><input type="password" id="pwCur" autocomplete="current-password" required></div>
+                <div class="field"><label for="pwNew">새 비밀번호 <span class="muted">(영문+숫자 10자 이상)</span></label><input type="password" id="pwNew" autocomplete="new-password" required></div>
+                <div class="actions form-actions"><button class="primary" type="submit">변경</button><span id="pwMsg" class="muted" role="status"></span></div>
+              </form>
+            </section>
+          </div>
+          <details class="card disclosure-card" id="auditPanel"><summary><span data-icon="list"></span>설정 변경 이력<span class="chevron" data-icon="chevron"></span></summary><div class="disclosure-body table-wrap" id="auditList"></div></details>
+        </section>
+
+        <section id="mcp" class="section" aria-labelledby="mcpTitle">
+          <div class="section-heading"><h2 id="mcpTitle">외부 AI(MCP)</h2><p>Claude·ChatGPT 같은 외부 AI 앱이 셀러 계정의 도구를 쓰도록 연결합니다. 셀러마다 토큰을 따로 발급하세요.</p></div>
+          <div class="section-grid">
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="box"></span><h3>MCP 서버</h3></div>
+              <label class="toggle compact"><input type="checkbox" id="mcpEnabled"><span><b>MCP 연결 켜기</b><small>끄면 모든 토큰이 막힙니다</small></span></label>
+              <div class="field"><label for="mcpEndpoint">접속 주소 (Streamable HTTP)</label><div class="input-row"><input type="text" id="mcpEndpoint" readonly class="mono"><button type="button" id="copyMcp"><span data-icon="copy"></span>복사</button></div></div>
+              <p class="muted">인증: <span class="mono">Authorization: Bearer sbmcp_…</span> · 카카오 PlayMCP·ChatGPT 등록에 필요한 OAuth는 다음 단계(docs/10)</p>
+            </section>
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="key"></span><h3>토큰 발급</h3></div>
+              <form id="mcpForm">
+                <div class="field"><label for="mcpUser">셀러 (계정이 연결된 사용자)</label><select id="mcpUser"></select></div>
+                <div class="field"><label for="mcpLabel">메모 <span class="muted">(예: 뷰티룸 Claude 데스크톱)</span></label><input type="text" id="mcpLabel" maxlength="60"></div>
+                <div class="actions form-actions"><button class="primary" type="submit">토큰 발급</button><span id="mcpMsg" class="muted" role="status"></span></div>
+              </form>
+              <div id="mcpTokenOut"></div>
+            </section>
+          </div>
+          <div class="card"><div class="table-wrap" id="mcpTokens"></div></div>
         </section>
 
         <section id="activity" class="section" aria-labelledby="activityTitle">
@@ -217,6 +347,7 @@
               <section class="card">
                 <div class="card-title"><span class="section-icon" data-icon="sliders"></span><h3>테스트 설정</h3></div>
                 <div class="test-modes"><span id="testAiMode" class="badge"></span><span id="testDataMode" class="badge"></span></div>
+                <div class="field"><label for="testView">답변 모양</label><select id="testView"><option value="KAKAO">카카오 말풍선</option><option value="WEB">웹챗 · 앱</option></select></div>
                 <div class="field"><label for="testUser">테스트 사용자 키</label><input type="text" id="testUser" maxlength="64" value="admin-test-user" autocomplete="off"></div>
                 <div id="mockConnection">
                   <label for="mockSeller">샘플 셀러 연결</label>

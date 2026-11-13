@@ -135,3 +135,91 @@ export async function getPlatformSettings(platform: 'sellerbricks' | 'studio'): 
     signingKey: await getSecret(`platform.${platform}.signingKey`),
   };
 }
+
+// ── 채널(카카오·웹챗·앱) 설정 ───────────────────────────
+
+export interface ChannelSettings {
+  kakao: { enabled: boolean; channelUrl: string };
+  web: { enabled: boolean };
+  app: { enabled: boolean; version: string; fileName: string; fileSize: number; externalUrl: string; note: string; updatedAt: string };
+  /** 시작 페이지 안내 문구 */
+  notice: string;
+}
+
+const on = (v: string, def: boolean) => (v === '' ? def : v === '1');
+
+export async function getChannelSettings(): Promise<ChannelSettings> {
+  return {
+    kakao: { enabled: on(await getSetting('channel.kakao.enabled'), true), channelUrl: await getSetting('channel.kakao.url') },
+    web: { enabled: on(await getSetting('channel.web.enabled'), true) },
+    app: {
+      enabled: on(await getSetting('channel.app.enabled'), false),
+      version: await getSetting('channel.app.version'),
+      fileName: await getSetting('channel.app.fileName'),
+      fileSize: Number((await getSetting('channel.app.fileSize')) || 0),
+      externalUrl: await getSetting('channel.app.externalUrl'),
+      note: await getSetting('channel.app.note'),
+      updatedAt: await getSetting('channel.app.updatedAt'),
+    },
+    notice: await getSetting('channel.notice'),
+  };
+}
+
+/** 카카오 채널 주소 → 채팅 바로가기 / 채널 추가 주소 (예: http://pf.kakao.com/_abcd) */
+export function kakaoLinks(channelUrl: string): { chat: string; add: string } | null {
+  const u = channelUrl.trim().replace(/\/+$/, '').replace(/\/(chat|friend)$/, '');
+  if (!/^https?:\/\/pf\.kakao\.com\/_[A-Za-z0-9]+$/.test(u)) return null;
+  return { chat: `${u}/chat`, add: `${u}/friend` };
+}
+
+// ── 비용·성능 (2-2차 ⑤) ─────────────────────────────────
+
+export interface CostSettings {
+  /** 셀러 1명당 하루 AI 질문 한도 (0 = 제한 없음) */
+  dailyPerUser: number;
+  /** 짧고 단순한 질문은 가벼운 모델로 */
+  autoModel: boolean;
+  claudeLight: string;
+  gptLight: string;
+  /** 동시에 처리하는 AI 질문 수 */
+  maxConcurrent: number;
+}
+
+export async function getCostSettings(): Promise<CostSettings> {
+  return {
+    dailyPerUser: Number((await getSetting('cost.dailyPerUser')) || '100'),
+    autoModel: on(await getSetting('cost.autoModel'), true),
+    claudeLight: (await getSetting('cost.claudeLight')) || 'claude-haiku-5-5',
+    gptLight: (await getSetting('cost.gptLight')) || 'gpt-5-nano',
+    maxConcurrent: Math.max(1, Number((await getSetting('cost.maxConcurrent')) || '5')),
+  };
+}
+
+// ── 알림 (2-2차 ⑥) ──────────────────────────────────────
+
+export interface NotifySettings {
+  enabled: boolean;
+  morningHour: number; // 한국 시간
+  kinds: Record<'MORNING' | 'LIVE_REPORT' | 'UNPAID' | 'UNSHIPPED' | 'CANCEL', boolean>;
+  /** 카카오 알림톡 발송 방식 — 지금은 가짜 발송(기록만) */
+  kakaoMode: 'MOCK' | 'OFF';
+}
+
+export async function getNotifySettings(): Promise<NotifySettings> {
+  return {
+    enabled: on(await getSetting('notify.enabled'), false),
+    morningHour: Number((await getSetting('notify.morningHour')) || '8'),
+    kinds: {
+      MORNING: on(await getSetting('notify.kind.MORNING'), true),
+      LIVE_REPORT: on(await getSetting('notify.kind.LIVE_REPORT'), true),
+      UNPAID: on(await getSetting('notify.kind.UNPAID'), true),
+      UNSHIPPED: on(await getSetting('notify.kind.UNSHIPPED'), true),
+      CANCEL: on(await getSetting('notify.kind.CANCEL'), true),
+    },
+    kakaoMode: ((await getSetting('notify.kakaoMode')) || 'MOCK') as 'MOCK' | 'OFF',
+  };
+}
+
+export async function isMcpEnabled(): Promise<boolean> {
+  return on(await getSetting('mcp.enabled'), false);
+}

@@ -157,7 +157,17 @@ function render(state) {
     : '주문과 상품을 조회하려면 플랫폼 연결을 켜세요.';
   const seller = $('#mockSeller');
   const selection = seller.value;
-  seller.replaceChildren(...state.mockSellers.map((item) => new Option(item.name, item.id)));
+  const sbGroup = document.createElement('optgroup');
+  sbGroup.label = '셀러브릭스';
+  sbGroup.append(...state.mockSellers.map((item) => new Option(item.name, item.id)));
+  const groups = [sbGroup];
+  if (state.platforms?.studio?.mode === 'MOCK' && state.mockStudioSellers?.length) {
+    const stGroup = document.createElement('optgroup');
+    stGroup.label = '스튜디오';
+    stGroup.append(...state.mockStudioSellers.map((item) => { const o = new Option(item.name + ' (스튜디오)', item.id); o.dataset.platform = 'STUDIO'; return o; }));
+    groups.push(stGroup);
+  }
+  seller.replaceChildren(...groups);
   if (state.mockSellers.some((item) => item.id === selection)) seller.value = selection;
   $('#tools').innerHTML = table(['도구', '설명', '권한'], state.tools.map((tool) => [
     `<b>${escapeHtml(tool.title)}</b><div class="mono">${escapeHtml(tool.name)}</div>`, escapeHtml(tool.description), tool.annotations?.readOnlyHint ? '조회' : '변경 가능',
@@ -670,7 +680,7 @@ async function sendText(value, file) {
       thumbnail.addEventListener('load', scrollChat, { once: true });
       addLine(outgoing, thumbnail, at);
     }
-    const { reply, kakao } = await api('/chat', { method: 'POST', body: { botUserKey: $('#testUser').value.trim(), text, image } });
+    const { reply, kakao } = await api('/chat', { method: 'POST', body: { botUserKey: $('#testUser').value.trim(), text, image, view: $('#testView')?.value || 'KAKAO' } });
     if (waiting.isConnected) {
       $('.message-line', waiting).remove();
       const { outputs, quickReplies } = kakao.template;
@@ -752,7 +762,7 @@ $('#issueCode').addEventListener('click', async () => {
   issuing = true;
   updateComposer();
   try {
-    const result = await api('/mock/link-code', { method: 'POST', body: { accountId: $('#mockSeller').value } });
+    const result = await api('/mock/link-code', { method: 'POST', body: { accountId: $('#mockSeller').value, platform: $('#mockSeller').selectedOptions[0]?.dataset.platform || 'SELLERBRICKS' } });
     if (version !== sessionVersion || userKey !== $('#testUser').value) return;
     output.innerHTML = `<div class="code"><strong>${escapeHtml(result.code)}</strong><div class="muted">${escapeHtml(result.accountName)} · ${time.format(new Date(result.expiresAt))}까지</div></div>`;
     $('.code', output).append(questionButton('연결 코드 보내기', '연결 ' + result.code));

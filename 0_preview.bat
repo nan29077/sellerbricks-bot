@@ -28,7 +28,10 @@ if not exist ".env" (
   copy ".env.example" ".env" >nul
   echo Created .env from .env.example  - please change ADMIN_PASSWORD in .env
 )
-if not exist "node_modules\.bin\tsx.cmd" (
+set NEED_INSTALL=
+if not exist "node_modules\.bin\tsx.cmd" set NEED_INSTALL=1
+if not exist "node_modules\qrcode\package.json" set NEED_INSTALL=1
+if defined NEED_INSTALL (
   echo Installing packages ^(npm install^) ...
   call npm install
   if errorlevel 1 (
@@ -50,6 +53,9 @@ if not exist "data\bot.db" (
 rem --- open browser after the server starts ---
 start "" /min powershell -NoProfile -WindowStyle Hidden -Command "for($i=0;$i -lt 60;$i++){try{Invoke-WebRequest -UseBasicParsing http://localhost:3071/health -TimeoutSec 1 | Out-Null; break}catch{Start-Sleep 1}}; Start-Process '%PREVIEW_URL%'"
 
+echo  Start page : http://localhost:3071/
+echo  Web chat   : http://localhost:3071/chat
+echo  Admin      : http://localhost:3071/admin
 echo Starting dev server on port 3071 ...  ^(Ctrl+C to stop^)
 call npm run dev
 pause

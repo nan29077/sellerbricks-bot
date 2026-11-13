@@ -29,26 +29,31 @@ import { issueMockLinkCode, unlinkAccount } from '../link/link.js';
 import { MOCK_SELLERS } from '../platforms/sellerbricks/mock.js';
 import { ALL_TOOLS, mcpToolList } from '../tools/index.js';
 import { searchFaq } from '../tools/content.js';
+import { MOCK_STUDIO_SELLERS } from '../platforms/studio/mock.js';
+import { audit, hasCustomPassword, sessionSalt, verifyAdminPassword } from '../ops/maintenance.js';
+import type { ChannelView } from '../channels/profile.js';
+import { adminExtRoutes } from './ext.js';
 
 const COOKIE = 'sb_admin';
 const SESSION_HOURS = 12;
 
-function makeSession(): string {
+// 세션 서명에 비밀번호 해시 일부를 섞어서, 관리자 화면에서 비밀번호를 바꾸면 기존 로그인이 모두 풀린다
+async function makeSession(): Promise<string> {
   const exp = Date.now() + SESSION_HOURS * 3600_000;
-  return `${exp}.${hmacHex(config.appSecret, `admin:${exp}`)}`;
+  return `${exp}.${hmacHex(config.appSecret, `admin:${exp}:${await sessionSalt()}`)}`;
 }
 
-function validSession(v?: string): boolean {
+async function validSession(v?: string): Promise<boolean> {
   if (!v) return false;
   const [exp, sig] = v.split('.');
   if (!exp || !sig || Number(exp) < Date.now()) return false;
-  return safeEqual(sig, hmacHex(config.appSecret, `admin:${exp}`));
+  return safeEqual(sig, hmacHex(config.appSecret, `admin:${exp}:${await sessionSalt()}`));
 }
 
 const loginHits = new Map<string, number[]>();
 
 async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
-  if (!validSession(req.cookies[COOKIE])) return reply.code(401).send({ error: '로그인이 필요합니다.' });
+  if (!(await validSession(req.cookies[COOKIE]))) return reply.code(401).send({ error: '로그인이 필요합니다.' });
 }
 
 async function keyInfo(name: KeyName) {
@@ -71,7 +76,6 @@ export async function adminRoutes(app: FastifyInstance) {
     return readFileSync(resolve(ROOT, 'public', file), 'utf8').replaceAll('{{PUBLIC_ORIGIN}}', () => origin);
   };
 
-  app.get('/', async (_req, reply) => reply.redirect('/admin'));
   app.get('/admin', async (_req, reply) => reply.type('text/html; charset=utf-8').send(page('admin.html')));
   app.get('/admin/classic', async (_req, reply) => reply.type('text/html; charset=utf-8').send(page('admin-classic.html')));
   const ASSET_TYPES: Record<string, string> = { css: 'text/css; charset=utf-8', js: 'text/javascript; charset=utf-8', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', ico: 'image/x-icon' };
@@ -92,8 +96,9 @@ export async function adminRoutes(app: FastifyInstance) {
     arr.push(now);
     loginHits.set(req.ip, arr);
     if (arr.length > 10) return reply.code(429).send({ error: '로그인 시도가 너무 많습니다. 1분 뒤 다시 시도하세요.' });
-    if (!safeEqual(String(req.body?.password || ''), config.adminPassword)) return reply.code(401).send({ error: '비밀번호가 틀렸습니다.' });
-    reply.setCookie(COOKIE, makeSession(), { httpOnly: true, sameSite: 'strict', path: '/', maxAge: SESSION_HOURS * 3600, secure: req.protocol === 'https' });
+    if (!(await verifyAdminPassword(String(req.body?.password || '')))) return reply.code(401).send({ error: '비밀번호가 틀렸습니다.' });
+    await audit('관리자 로그인', '', req.ip);
+    reply.setCookie(COOKIE, await makeSession(), { httpOnly: true, sameSite: 'strict', path: '/', maxAge: SESSION_HOURS * 3600, secure: req.protocol === 'https' });
     return { ok: true };
   });
 
@@ -104,6 +109,14 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.register(async (api) => {
     api.addHook('preHandler', requireAdmin);
+    // 설정 변경 이력 (조회·테스트 채팅 제외)
+    api.addHook('onResponse', async (req, reply) => {
+      if (req.method === 'GET' || reply.statusCode >= 400) return;
+      const path = req.routeOptions?.url ?? req.url;
+      if (/\/admin\/api\/(chat|faq\/search|mock\/link-code|notify\/preview)$/.test(path)) return;
+      await audit(`${req.method} ${path.replace('/admin/api/', '')}`, '', req.ip);
+    });
+    await adminExtRoutes(api);
 
     // 전체 상태 (화면 첫 로딩)
     api.get('/admin/api/state', async () => {
@@ -125,7 +138,7 @@ export async function adminRoutes(app: FastifyInstance) {
       const skillPath = `/kakao/skill/${await getKakaoSkillSecret()}`;
       return {
         warnings: [
-          ...(isDefaultAdminPassword() ? ['관리자 비밀번호가 기본값입니다. .env에서 ADMIN_PASSWORD를 변경한 뒤 서버를 다시 시작하세요.'] : []),
+          ...(isDefaultAdminPassword() && !(await hasCustomPassword()) ? ['관리자 비밀번호가 기본값입니다. .env에서 ADMIN_PASSWORD를 변경한 뒤 서버를 다시 시작하세요.'] : []),
         ],
         keys: { anthropic: await keyInfo('anthropic'), openai: await keyInfo('openai') },
         llm: { ...llm, presets: MODEL_PRESETS },
@@ -137,6 +150,7 @@ export async function adminRoutes(app: FastifyInstance) {
         },
         kakao: { skillPath, exampleUrl: config.publicBaseUrl + skillPath },
         mockSellers: MOCK_SELLERS.map((s) => ({ id: s.id, name: s.name })),
+        mockStudioSellers: MOCK_STUDIO_SELLERS.map((s) => ({ id: s.id, name: s.name })),
         tools: mcpToolList(ALL_TOOLS),
       };
     });
@@ -186,7 +200,6 @@ export async function adminRoutes(app: FastifyInstance) {
       const b = req.body || {};
       if (b.mode) {
         if (!['OFF', 'MOCK', 'LIVE'].includes(b.mode)) return reply.code(400).send({ error: '잘못된 모드' });
-        if (p === 'studio' && b.mode !== 'OFF') return reply.code(400).send({ error: '스튜디오 연동은 스튜디오 배포 후 열립니다.' });
         if (b.mode === 'LIVE') {
           const cur = await getPlatformSettings(p);
           if (!(b.baseUrl || cur.baseUrl) || !(b.signingKey || cur.signingKey)) return reply.code(400).send({ error: '실제 모드는 API 주소와 서명 키가 필요합니다.' });
@@ -199,17 +212,18 @@ export async function adminRoutes(app: FastifyInstance) {
     });
 
     // 가짜 연결 코드
-    api.post<{ Body: { accountId?: string } }>('/admin/api/mock/link-code', async (req) => {
-      const r = await issueMockLinkCode(String(req.body?.accountId || ''));
+    api.post<{ Body: { accountId?: string; platform?: string } }>('/admin/api/mock/link-code', async (req) => {
+      const r = await issueMockLinkCode(String(req.body?.accountId || ''), req.body?.platform === 'STUDIO' ? 'STUDIO' : 'SELLERBRICKS');
       return { ...r, expiresAt: r.expiresAt.toISOString() };
     });
 
     // 테스트 채팅
-    api.post<{ Body: { botUserKey?: string; text?: string; image?: { base64: string; contentType: string } } }>('/admin/api/chat', { bodyLimit: 12 * 1024 * 1024 }, async (req) => {
+    api.post<{ Body: { botUserKey?: string; text?: string; view?: string; image?: { base64: string; contentType: string } } }>('/admin/api/chat', { bodyLimit: 12 * 1024 * 1024 }, async (req) => {
       const botUserKey = String(req.body?.botUserKey || 'admin-test-user').slice(0, 64);
       const img = req.body?.image;
       const images = img?.base64 ? [{ base64: img.base64, contentType: img.contentType || 'image/jpeg' }] : [];
-      const r = await handleMessage({ botUserKey, text: String(req.body?.text || ''), images, channel: 'TEST' });
+      const view: ChannelView = req.body?.view === 'WEB' ? 'WEB' : 'KAKAO';
+      const r = await handleMessage({ botUserKey, text: String(req.body?.text || ''), images, channel: 'TEST', view });
       return { reply: r, kakao: buildResponse(r) };
     });
 
@@ -223,7 +237,7 @@ export async function adminRoutes(app: FastifyInstance) {
     // 연결된 사용자
     api.get('/admin/api/users', async () => {
       const users = await prisma.botUser.findMany({ orderBy: { lastSeenAt: 'desc' }, take: 200, include: { links: { select: { platform: true, accountName: true, createdAt: true } } } });
-      return users.map((u) => ({ id: u.id, botUserKey: u.botUserKey.length > 16 ? u.botUserKey.slice(0, 12) + '…' : u.botUserKey, lastSeenAt: u.lastSeenAt, links: u.links }));
+      return users.map((u) => ({ id: u.id, botUserKey: u.botUserKey.length > 16 ? u.botUserKey.slice(0, 12) + '…' : u.botUserKey, channel: u.channel, blockedAt: u.blockedAt, blockReason: u.blockReason, lastSeenAt: u.lastSeenAt, links: u.links }));
     });
 
     api.post<{ Params: { id: string } }>('/admin/api/users/:id/unlink', async (req) => ({ message: await unlinkAccount(req.params.id) }));

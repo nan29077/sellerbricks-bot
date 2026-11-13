@@ -1,0 +1,21 @@
+{
+  "name": "sellerbricks-ai-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI 셀러 비서 안드로이드 앱 — 봇 서버의 웹챗(/chat)을 앱으로 감싼 얇은 껍데기 (Capacitor)",
+  "type": "module",
+  "scripts": {
+    "configure": "node scripts/configure.mjs",
+    "icons": "capacitor-assets generate --android --iconBackgroundColor #17634c --splashBackgroundColor #f4f7f6",
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.6.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.6.0"
+  }
+}

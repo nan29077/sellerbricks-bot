@@ -1,3 +1,4 @@
+import type { ChannelKey, ChannelView } from '../channels/profile.js';
 import type { PlatformKey } from '../platforms/index.js';
 
 /** 카카오 리스트카드로 바꿔 보여줄 수 있는 결과 */
@@ -24,6 +25,9 @@ export interface ToolContext {
   prefs: Record<string, string>;
   /** 연결된 플랫폼별 토큰 — 셀러 범위는 이 토큰으로 플랫폼이 강제 */
   links: Partial<Record<PlatformKey, { token: string; accountName: string }>>;
+  /** 답변 모양 (카카오 말풍선 / 웹·앱) — 도구는 쓰지 않고 AI 지시문만 참고 */
+  view?: ChannelView;
+  channel?: ChannelKey;
 }
 
 /** MCP Tool 형식(name / description / inputSchema)과 동일 + 실행 함수 */

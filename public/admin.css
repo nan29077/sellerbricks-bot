@@ -1,8 +1,8 @@
 :root {
   color-scheme: light;
-  --page: #f5f7f7;
+  --page: #f5f7f4;
   --paper: #fff;
-  --line: #dfe7e4;
+  --line: #dde6df;
   --text: #172722;
   --muted: #52655d;
   --brand: #17634c;
@@ -55,7 +55,7 @@ button:disabled { cursor: default; opacity: .56; }
 .quiet, .icon-button { background: transparent; border-color: transparent; }
 .icon-button { width: 38px; padding: 0; }
 .danger { color: var(--bad); }
-input:not([type=radio]):not([type=hidden]):not([type=file]), select, textarea {
+input:not([type=radio]):not([type=checkbox]):not([type=hidden]):not([type=file]), select, textarea {
   width: 100%;
   min-width: 0;
   height: 42px;
@@ -88,19 +88,25 @@ label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
   min-height: 100svh;
   display: grid;
   place-items: center;
-  padding: 26px 20px;
-  background: radial-gradient(ellipse at 50% 15%, #e5f2eb, transparent 66%), #f5f8f7;
+  padding: 24px;
+  background: #eef3ec;
 }
-.login-wrap { width: min(100%, 420px); }
-.login-brand { display: flex; justify-content: center; margin-bottom: 25px; font-size: 23px; }
-.login-card { padding: clamp(24px, 7vw, 38px); background: var(--paper); border: 1px solid var(--line); border-radius: 20px; box-shadow: 0 14px 40px #173c2a0b; }
-.login-card h1 { font-size: 29px; }
-.login-card > p { margin: 8px 0 27px; color: var(--muted); }
+.login-page .auth-layout { min-height: 565px; }
+.login-card { width: 100%; margin-block: clamp(34px, 6vw, 70px) 38px; }
+.login-card h1 { font-size: clamp(28px, 3.2vw, 38px); }
+.login-card > p { margin: 9px 0 26px; color: var(--muted); }
 .password-field { position: relative; }
-.password-field input { height: 47px; padding-right: 48px; }
-.password-field button { position: absolute; top: 4px; right: 4px; color: var(--muted); }
-.login-button { width: 100%; height: 46px; margin-top: 18px; }
+.password-field input { height: 50px; padding-right: 48px; border-radius: 11px; }
+.password-field button { position: absolute; top: 6px; right: 5px; color: var(--muted); }
+.login-button { width: 100%; height: 48px; margin-top: 14px; border-radius: 11px; font-size: 14px; }
+.login-back { text-underline-offset: 4px; }
+.login-back:hover { text-decoration: underline; }
 .form-error { margin-top: 8px; font-size: 13px; }
+@media (max-width: 700px) {
+  .login-page { padding: 16px; }
+  .login-page .auth-layout { min-height: 0; }
+  .login-card { margin-block: 25px 18px; }
+}
 
 .app { display: grid; grid-template-columns: 226px minmax(0, 1fr); }
 .sidebar { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; padding: 23px 16px 16px; background: #fff; border-right: 1px solid var(--line); }
@@ -119,7 +125,7 @@ label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
 .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
 .page-heading p, .section-heading p { color: var(--muted); margin-top: 6px; }
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
-.stat, .card { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
+.stat, .card { min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; }
 .stat { display: flex; align-items: flex-start; gap: 11px; padding: 15px; font-size: 12px; font-weight: 700; color: var(--muted); }
 .stat strong { display: block; color: var(--text); font-size: 26px; font-weight: 800; letter-spacing: -.04em; line-height: 1.25; margin-top: 3px; overflow-wrap: anywhere; }
 .usage-detail { margin-top: 9px; }
@@ -131,7 +137,7 @@ label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
 .section { margin-top: 33px; }
 .section > h2, .section-heading { margin-bottom: 12px; }
 .section-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.card { padding: 18px; }
+.card { padding: clamp(16px, 2vw, 22px); }
 .card-title { display: flex; align-items: center; gap: 9px; }
 .provider, .studio { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 13px; }
 .provider h4 span { color: var(--muted); margin-left: 4px; font-size: 11px; font-weight: 600; }
@@ -265,3 +271,28 @@ dialog p { margin-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .talk { height: 510px; }
 }
 @media (prefers-reduced-motion: reduce) { .typing i { animation: none; } }
+
+/* ── 채널·앱 / 운영·알림 / MCP (admin-ext.js) ── */
+.studio-form { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.toggles { display: grid; gap: 8px; margin-top: 14px; }
+.toggles.small { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 10px; }
+.toggle { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.toggle:has(:checked) { background: var(--soft); border-color: #bcd7ca; }
+.toggle input { margin-top: 3px; accent-color: var(--brand); width: 16px; height: 16px; flex: none; }
+.toggle span { display: grid; min-width: 0; }
+.toggle small { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.toggle.compact { padding: 8px 10px; margin-top: 10px; }
+.toggles .toggle.compact { margin-top: 0; }
+.disclosure-card { margin-top: 14px; padding: 0; }
+.disclosure-card > summary { padding: 14px 17px; }
+.disclosure-card > summary > [data-icon]:first-child { color: var(--brand); }
+.disclosure-card .disclosure-body { padding-top: 2px; }
+.mini-details { margin-top: 14px; }
+.mini-details > summary { font-weight: 600; font-size: 13px; color: var(--muted); }
+.preview { margin-top: 10px; padding: 12px; border-radius: 10px; background: var(--soft); white-space: pre-wrap; font: inherit; font-size: 13px; }
+.stat small { display: block; font-weight: 500; margin-top: 2px; }
+#channelStats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: 0; margin-bottom: 8px; }
+.code .token { font-size: 13px; letter-spacing: 0; word-break: break-all; margin: 6px 0; }
+#qualityPanel .actions { margin-bottom: 8px; }
+a.button { text-decoration: none; }
+@media (max-width: 760px) { .toggles.small { grid-template-columns: minmax(0, 1fr); } }

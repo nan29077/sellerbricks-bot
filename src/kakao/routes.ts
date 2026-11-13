@@ -8,7 +8,7 @@ import { handleMessage, isInstantCommand, RESULT_CHECK, savePending, takePending
 import type { IncomingImage } from '../product/draft.js';
 import { config } from '../lib/config.js';
 import { safeEqual } from '../lib/crypto.js';
-import { getKakaoSkillSecret } from '../lib/settings.js';
+import { getChannelSettings, getKakaoSkillSecret } from '../lib/settings.js';
 import { buildResponse, callbackAck } from './response.js';
 
 interface SkillPayload {
@@ -79,6 +79,10 @@ export async function kakaoRoutes(app: FastifyInstance) {
   app.post<{ Params: { secret: string }; Body: SkillPayload }>('/kakao/skill/:secret', async (req, reply) => {
     const secret = await getKakaoSkillSecret();
     if (!safeEqual(req.params.secret || '', secret)) return reply.code(404).send({ error: 'not found' });
+
+    // 관리자 화면에서 카카오 채널을 끈 경우 — 웹챗으로 안내
+    const ch = await getChannelSettings();
+    if (!ch.kakao.enabled) return buildResponse({ text: `지금은 카카오 채널 비서를 잠시 쉬고 있어요.${ch.web.enabled ? `\n웹챗에서 이용해 주세요: ${config.publicBaseUrl}/chat` : ''}`, quickReplies: [] });
 
     const ur = req.body?.userRequest ?? {};
     const botUserKey = ur.user?.properties?.botUserKey || ur.user?.id || '';
