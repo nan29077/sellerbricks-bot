@@ -127,7 +127,7 @@ export interface ProductList {
   items: ProductItem[];
 }
 
-export interface SellerbricksApi {
+export interface SellerbricksApi extends SellerbricksApiV2 {
   verifyLink(code: string, botUserKey: string): Promise<LinkVerifyResult>;
   revokeLink(linkToken: string): Promise<void>;
   getOrderSummary(t: string, from: Date, to: Date): Promise<OrderSummary>;
@@ -139,6 +139,150 @@ export interface SellerbricksApi {
   getTopProducts(t: string, from: Date, to: Date, limit: number): Promise<TopProducts>;
   getProducts(t: string, query: { linkNo?: number; keyword?: string; lowStock?: boolean }): Promise<ProductList>;
   searchOrders(t: string, q: string, from: Date, to: Date): Promise<OrderList>;
+}
+
+
+// ═══════════════ v2 — 범용 조회 ═══════════════
+
+export type OrderStatusKey = 'UNPAID' | 'PAID' | 'PREPARING' | 'SHIPPING' | 'DELIVERED' | 'CANCEL_REQUESTED' | 'CANCELLED';
+export type OrderGroupBy = 'none' | 'day' | 'weekday' | 'hour' | 'product' | 'live' | 'payType' | 'status' | 'buyer';
+
+export interface OrderQuery {
+  from: Date;
+  to: Date;
+  orderType?: 'ALL' | OrderType;
+  payTypes?: PayType[];
+  statuses?: OrderStatusKey[];
+  liveStreamId?: string; // 'latest' 허용
+  productKeyword?: string;
+  buyer?: string; // 이름·닉네임·뒷4자리
+  minAmount?: number;
+  maxAmount?: number;
+  groupBy?: OrderGroupBy;
+  compare?: boolean; // 직전 동기간 비교
+  limit?: number; // 표본 주문 수 (최대 30)
+}
+
+export interface OrderQueryResult {
+  from: string;
+  to: string;
+  totals: { count: number; amount: number; paidCount: number; paidAmount: number; avgAmount: number };
+  groups: { key: string; label: string; count: number; amount: number }[];
+  previous: { count: number; amount: number } | null;
+  items: OrderListItem[];
+  truncated: boolean;
+}
+
+export type ProductKind = 'QUICK' | 'DIRECT'; // QUICK = 간편 상품(주문서 선택용, 평생번호) / DIRECT = 간편 상품(마이샵 진열용)
+
+export interface ProductQuery {
+  scope?: 'ALL' | ProductKind;
+  keyword?: string;
+  linkNo?: number;
+  lowStock?: boolean;
+  activeOnly?: boolean;
+  salesFrom?: Date;
+  salesTo?: Date;
+  sortBy?: 'sales' | 'stock' | 'price' | 'recent';
+  limit?: number;
+}
+
+export interface ProductQueryItem {
+  kind: ProductKind;
+  id: string;
+  linkNo: number | null;
+  name: string;
+  price: number;
+  useStock: boolean;
+  stock: number;
+  isActive: boolean;
+  soldQty: number;
+  soldAmount: number;
+  imageUrl: string | null;
+  adminUrl: string;
+}
+
+export interface ProductQueryResult {
+  items: ProductQueryItem[];
+  totalCount: number;
+}
+
+export interface CustomerQuery {
+  from: Date;
+  to: Date;
+  sortBy?: 'amount' | 'count';
+  limit?: number;
+}
+
+export interface CustomerQueryResult {
+  totalBuyers: number;
+  repeatBuyers: number; // 기간 내 2회 이상 구매
+  repeatRate: number; // %
+  newFans: number;
+  items: { buyer: string; phoneLast4: string; orderCount: number; amount: number; lastOrderAt: string }[];
+}
+
+export interface SettlementHistory {
+  months: { month: string; salesAmount: number; commission: number; expectedSettlement: number }[];
+  settlementBusinessDays: number; // 결제완료 후 영업일 N일 뒤 정산 가능
+}
+
+export interface LiveList {
+  upcoming: { id: string; title: string; scheduledAt: string }[];
+  recent: { id: string; title: string; startedAt: string; endedAt: string | null; peakViewerCount: number; orderCount: number; amount: number; paidAmount: number }[];
+}
+
+export interface ShopActivity {
+  liveNow: { id: string; title: string; startedAt: string } | null;
+  nextLive: { id: string; title: string; scheduledAt: string } | null;
+  moMessages: { today: number; last7Days: number }; // MO 평생번호 문자 주문 접수
+  alimtalkCredit: number;
+  unansweredReviews: { count: number; items: { product: string; rating: number; text: string; createdAt: string }[] };
+  unreadProductChats: { count: number; items: { product: string; text: string; createdAt: string }[] };
+  newFans: { last7Days: number; total: number };
+  visitors: { today: number; yesterday: number; last7Days: number };
+}
+
+export interface SellerDefaults {
+  shopName: string;
+  shopUrl: string;
+  shippingFee: number; // 셀러 기본 배송비
+  freeShippingThreshold: number | null;
+}
+
+// ═══════════════ v2 — 쓰기 (상품 등록) ═══════════════
+
+export interface NewProductInput {
+  name: string;
+  price: number;
+  description?: string;
+  images?: string[]; // uploadImage 로 받은 URL
+  stock: number | null; // null = 재고 관리 안 함
+  shippingFee: number;
+  options?: { name: string; values: { label: string; addPrice: number; soldOut: boolean }[] }[];
+  idempotencyKey: string; // 같은 키로 두 번 오면 한 번만 등록
+}
+
+export interface CreatedProduct {
+  kind: ProductKind;
+  id: string;
+  linkNo: number | null;
+  adminUrl: string;
+  shopUrl: string | null;
+}
+
+export interface SellerbricksApiV2 {
+  queryOrders(t: string, q: OrderQuery): Promise<OrderQueryResult>;
+  queryProducts(t: string, q: ProductQuery): Promise<ProductQueryResult>;
+  queryCustomers(t: string, q: CustomerQuery): Promise<CustomerQueryResult>;
+  getSettlementHistory(t: string, fromMonth: string, toMonth: string): Promise<SettlementHistory>;
+  getLives(t: string, limit: number): Promise<LiveList>;
+  getShopActivity(t: string): Promise<ShopActivity>;
+  getSellerDefaults(t: string): Promise<SellerDefaults>;
+  uploadImage(t: string, img: { base64: string; contentType: string }): Promise<{ url: string }>;
+  createDirectProduct(t: string, p: NewProductInput): Promise<CreatedProduct>;
+  createQuickProduct(t: string, p: NewProductInput): Promise<CreatedProduct>;
+  setProductActive(t: string, kind: ProductKind, id: string, active: boolean): Promise<void>;
 }
 
 export class PlatformError extends Error {

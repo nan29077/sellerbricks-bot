@@ -18,6 +18,10 @@ export interface ToolResult {
 
 export interface ToolContext {
   now: Date;
+  /** 봇 사용자 id (결과물 링크 소유자) */
+  botUserId: string;
+  /** 셀러별 기본 설정 (송장 지연 기준일 등) */
+  prefs: Record<string, string>;
   /** 연결된 플랫폼별 토큰 — 셀러 범위는 이 토큰으로 플랫폼이 강제 */
   links: Partial<Record<PlatformKey, { token: string; accountName: string }>>;
 }

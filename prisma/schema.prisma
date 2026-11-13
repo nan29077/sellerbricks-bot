@@ -25,6 +25,9 @@ model BotUser {
   lastSeenAt DateTime       @default(now())
   links      PlatformLink[]
   chats      ChatLog[]
+  prefs      SellerPref[]
+  drafts     ProductDraft[]
+  artifacts  Artifact[]
 }
 
 // 챗봇 사용자 ↔ 플랫폼 계정 연결 (셀러브릭스 / 스튜디오 각각 선택적)
@@ -65,10 +68,13 @@ model ChatLog {
   tokensIn  Int           @default(0)
   tokensOut Int           @default(0)
   error     String?
+  checkWarn String? // 숫자 검증 경고 (답변 숫자가 조회 결과에 없을 때)
+  feedback  Int? // 1 = 👍, -1 = 👎
   createdAt DateTime      @default(now())
   tools     ToolCallLog[]
 
   @@index([createdAt])
+  @@index([botUserId, createdAt])
 }
 
 // 도구 호출 로그
@@ -82,4 +88,89 @@ model ToolCallLog {
   ms        Int
   error     String?
   createdAt DateTime @default(now())
+}
+
+// 셀러별 기본 설정 (송장 지연 기준일, 상품 기본 등록 위치 등)
+model SellerPref {
+  id        String   @id @default(cuid())
+  botUserId String
+  botUser   BotUser  @relation(fields: [botUserId], references: [id], onDelete: Cascade)
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@unique([botUserId, key])
+}
+
+// 결과물 (결과 페이지 · CSV · 문서) — 셀러 전용 서명 링크로 열람
+model Artifact {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  botUserId   String
+  botUser     BotUser   @relation(fields: [botUserId], references: [id], onDelete: Cascade)
+  kind        String // REPORT | TABLE | TEXT
+  title       String
+  payloadJson String
+  views       Int       @default(0)
+  lastViewAt  DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([createdAt])
+}
+
+// 사진 상품 등록 작성 중 내용 (30분 유효)
+model ProductDraft {
+  id          String   @id @default(cuid())
+  botUserId   String
+  botUser     BotUser  @relation(fields: [botUserId], references: [id], onDelete: Cascade)
+  status      String // COLLECTING | CONFIRM | DONE | CANCELLED
+  imagesJson  String   @default("[]") // 봇 서버에 저장한 사진 토큰 목록
+  name        String?
+  description String?
+  price       Int?
+  stock       Int? // null = 재고 관리 안 함
+  shippingFee Int? // null = 셀러 기본 배송비
+  optionsJson String?
+  warnings    String? // 광고 문구 점검 결과
+  resultJson  String? // 등록 결과 (상품 id, 번호 등)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([botUserId, status])
+}
+
+// 업로드된 사진 (카카오 보안 이미지는 링크가 곧 만료되므로 받자마자 저장)
+model StoredImage {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  botUserId   String?
+  contentType String
+  bytes       Bytes
+  createdAt   DateTime @default(now())
+}
+
+// 콜백 미승인 상태에서 4초를 넘긴 답 — [결과 보기]로 받기
+model PendingReply {
+  id         String   @id @default(cuid())
+  botUserKey String   @unique
+  status     String // WORKING | READY
+  question   String
+  replyJson  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// 셀러용 FAQ · 사용법 · 정책 (관리자 화면에서 편집)
+model FaqDoc {
+  id        String   @id @default(cuid())
+  category  String
+  question  String
+  answer    String
+  keywords  String   @default("")
+  isActive  Boolean  @default(true)
+  source    String? // 근거 (셀러브릭스 코드 위치 등)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -26,6 +26,10 @@ export const config = {
   adminPassword: process.env.ADMIN_PASSWORD || 'admin1234',
   appSecret: loadAppSecret(),
   kakaoSkillSecretEnv: (process.env.KAKAO_SKILL_SECRET || '').trim(),
+  /** 결과 페이지·사진 링크에 쓰는 이 봇 서버의 외부 주소 (배포 후 https://bot.도메인) */
+  publicBaseUrl: (process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3071}`).replace(/\/$/, ''),
+  /** 결과물 링크 유효 시간(분) */
+  resultLinkMinutes: Number(process.env.RESULT_LINK_MINUTES || 30),
   sellerbricksWebUrl: (process.env.SELLERBRICKS_WEB_URL || 'https://sellerbricks.co.kr').replace(/\/$/, ''),
   envAnthropicKey: (process.env.ANTHROPIC_API_KEY || '').trim(),
   envOpenaiKey: (process.env.OPENAI_API_KEY || '').trim(),

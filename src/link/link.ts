@@ -35,7 +35,7 @@ export async function linkAccount(botUserId: string, botUserKey: string, platfor
       create: { botUserId, platform, accountId: r.accountId, accountName: r.accountName, linkToken: encrypt(r.linkToken) },
       update: { accountId: r.accountId, accountName: r.accountName, linkToken: encrypt(r.linkToken) },
     });
-    return `✅ ${PLATFORM_LABEL[platform]} "${r.accountName}" 계정이 연결됐어요!\n이제 "오늘 주문 정리해줘" 처럼 물어보세요.`;
+    return `${PLATFORM_LABEL[platform]} "${r.accountName}" 계정이 연결됐어요!\n이제 "오늘 주문 정리해줘" 처럼 물어보세요.`;
   } catch (e) {
     if (e instanceof PlatformError) {
       if (e.code === 'LINK_EXPIRED') return '연결 코드 유효시간(5분)이 지났어요. 새 코드를 받아 다시 입력해 주세요.';
@@ -68,7 +68,7 @@ export async function linkStatusText(botUserId: string): Promise<string> {
   const sb = rows.find((r) => r.platform === 'SELLERBRICKS');
   const st = rows.find((r) => r.platform === 'STUDIO');
   return [
-    '🔗 연결 상태',
+    '연결 상태',
     `셀러브릭스: ${sb ? `연결됨 (${sb.accountName})` : '연결 안 됨'}`,
     `셀러브릭스 스튜디오: ${st ? `연결됨 (${st.accountName})` : '연결 안 됨 (배포 후 오픈 예정)'}`,
   ].join('\n');

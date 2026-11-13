@@ -3,6 +3,19 @@
 import { hmacHex, sha256Hex } from '../../lib/crypto.js';
 import {
   type CancelRequests,
+  type CreatedProduct,
+  type CustomerQuery,
+  type CustomerQueryResult,
+  type LiveList,
+  type NewProductInput,
+  type OrderQuery,
+  type OrderQueryResult,
+  type ProductKind,
+  type ProductQuery,
+  type ProductQueryResult,
+  type SellerDefaults,
+  type SettlementHistory,
+  type ShopActivity,
   type LinkVerifyResult,
   type LiveOrders,
   type OrderList,
@@ -93,5 +106,41 @@ export class HttpSellerbricksApi implements SellerbricksApi {
   }
   searchOrders(token: string, q: string, from: Date, to: Date) {
     return this.call<OrderList>('GET', '/orders/search', { token, query: { q, from: from.toISOString(), to: to.toISOString() } });
+  }
+
+  // ── v2 범용 조회 (POST + JSON 본문, 날짜는 ISO) ──
+  queryOrders(token: string, q: OrderQuery) {
+    return this.call<OrderQueryResult>('POST', '/query/orders', { token, body: { ...q, from: q.from.toISOString(), to: q.to.toISOString() } });
+  }
+  queryProducts(token: string, q: ProductQuery) {
+    return this.call<ProductQueryResult>('POST', '/query/products', { token, body: { ...q, salesFrom: q.salesFrom?.toISOString(), salesTo: q.salesTo?.toISOString() } });
+  }
+  queryCustomers(token: string, q: CustomerQuery) {
+    return this.call<CustomerQueryResult>('POST', '/query/customers', { token, body: { ...q, from: q.from.toISOString(), to: q.to.toISOString() } });
+  }
+  getSettlementHistory(token: string, fromMonth: string, toMonth: string) {
+    return this.call<SettlementHistory>('GET', '/settlement/history', { token, query: { fromMonth, toMonth } });
+  }
+  getLives(token: string, limit: number) {
+    return this.call<LiveList>('GET', '/lives', { token, query: { limit } });
+  }
+  getShopActivity(token: string) {
+    return this.call<ShopActivity>('GET', '/shop/activity', { token });
+  }
+  getSellerDefaults(token: string) {
+    return this.call<SellerDefaults>('GET', '/seller/defaults', { token });
+  }
+  // ── v2 쓰기 ──
+  uploadImage(token: string, img: { base64: string; contentType: string }) {
+    return this.call<{ url: string }>('POST', '/images', { token, body: img });
+  }
+  createDirectProduct(token: string, p: NewProductInput) {
+    return this.call<CreatedProduct>('POST', '/products/direct', { token, body: p });
+  }
+  createQuickProduct(token: string, p: NewProductInput) {
+    return this.call<CreatedProduct>('POST', '/products/quick', { token, body: p });
+  }
+  async setProductActive(token: string, kind: ProductKind, id: string, active: boolean) {
+    await this.call('POST', `/products/${kind.toLowerCase()}/${encodeURIComponent(id)}/active`, { token, body: { active } });
   }
 }

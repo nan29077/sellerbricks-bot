@@ -5,6 +5,8 @@ import { prisma } from './lib/db.js';
 import { getKakaoSkillSecret, getLlmSettings } from './lib/settings.js';
 import { adminRoutes } from './admin/routes.js';
 import { kakaoRoutes } from './kakao/routes.js';
+import { webRoutes } from './web/routes.js';
+import { seedFaqIfEmpty } from './lib/faqSeed.js';
 
 export async function buildApp() {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL || 'info' }, trustProxy: true, bodyLimit: 256 * 1024 });
@@ -15,6 +17,8 @@ export async function buildApp() {
   });
   await app.register(adminRoutes);
   await app.register(kakaoRoutes);
+  await app.register(webRoutes);
+  await seedFaqIfEmpty();
   return app;
 }
 
@@ -29,7 +33,7 @@ async function main() {
   console.log(` 상태 확인   : http://localhost:${config.port}/health`);
   console.log(` 카카오 스킬 : POST /kakao/skill/${await getKakaoSkillSecret()}`);
   console.log(` AI 모드     : ${llm.effective === 'MOCK' ? `가짜 응답 모드 (${llm.reason})` : llm.effective}`);
-  if (isDefaultAdminPassword()) console.log(' ⚠ 관리자 비밀번호가 기본값입니다. .env 의 ADMIN_PASSWORD 를 바꾸세요.');
+  if (isDefaultAdminPassword()) console.log(' 관리자 비밀번호가 기본값입니다. .env 의 ADMIN_PASSWORD 를 바꾸세요.');
   console.log(`${line}\n`);
 }
 

@@ -1,9 +1,14 @@
 import { PlatformError } from '../platforms/sellerbricks/types.js';
 import { PLATFORM_LABEL, type PlatformKey } from '../platforms/index.js';
+import { contentTools, helpTools } from './content.js';
+import { queryTools } from './query.js';
 import { sellerbricksTools } from './sellerbricks.js';
 import type { BotTool, ToolContext, ToolResult } from './types.js';
 
-export const ALL_TOOLS: BotTool[] = [...sellerbricksTools];
+export const ALL_TOOLS: BotTool[] = [...sellerbricksTools, ...queryTools, ...contentTools, ...helpTools];
+
+/** 쓰기 도구(데이터를 바꾸는 도구) — MCP readOnlyHint=false 대상. 1차 조회 도구는 모두 읽기 전용 */
+export const WRITE_TOOLS = new Set(['set_preference']);
 
 /** 연결된 플랫폼의 도구만 노출 */
 export function toolsFor(ctx: ToolContext): BotTool[] {
@@ -12,7 +17,7 @@ export function toolsFor(ctx: ToolContext): BotTool[] {
 
 /** MCP tools/list 형식 */
 export function mcpToolList(tools: BotTool[]) {
-  return tools.map((t) => ({ name: t.name, title: t.title, description: t.description, inputSchema: t.inputSchema }));
+  return tools.map((t) => ({ name: t.name, title: t.title, description: t.description, inputSchema: t.inputSchema, annotations: { title: t.title, readOnlyHint: !WRITE_TOOLS.has(t.name), destructiveHint: false } }));
 }
 
 export interface ToolExecLog {

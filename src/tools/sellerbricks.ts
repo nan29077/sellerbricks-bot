@@ -50,7 +50,7 @@ export const sellerbricksTools: BotTool[] = [
       const prevTotal = d.previous.orderFormAmount + d.previous.generalAmount;
       const diff = pct(total, prevTotal);
       const lines = [
-        `📦 ${p.label} 주문 정리`,
+        `${p.label} 주문 정리`,
         '',
         `[셀러샵 주문서] ${f.count}건 · ${won(f.amount)}`,
         `  - 계좌입금 ${f.account.count}건 ${won(f.account.amount)} / 카드 ${f.card.count}건 ${won(f.card.amount)}`,
@@ -86,7 +86,7 @@ export const sellerbricksTools: BotTool[] = [
       const s = d.stream;
       const f = d.orderForm;
       const lines = [
-        `🎥 ${s.title}`,
+        `${s.title}`,
         `${fmtDateTime(new Date(s.startedAt))} 시작${s.endedAt ? '' : ' · 방송 중'} · 최고 시청자 ${s.peakViewerCount}명`,
         '',
         `주문서 ${f.count}건 · ${won(f.amount)}`,
@@ -115,10 +115,10 @@ export const sellerbricksTools: BotTool[] = [
     async run(ctx, args) {
       const p = period(args, 'last_7_days', ctx.now);
       const d = await (await sellerbricksApi()).getUnpaidOrders(token(ctx), p.from, p.to);
-      if (!d.totalCount) return { summary: `${p.label} 미입금 주문이 없어요. 👍`, data: d };
+      if (!d.totalCount) return { summary: `${p.label} 미입금 주문이 없어요.`, data: d };
       const acc = d.items.filter((o) => o.payType === 'ACCOUNT').length;
       return {
-        summary: `💸 ${p.label} 미입금·미결제 ${d.totalCount}건 (${won(d.totalAmount)})\n계좌 미입금 ${acc}건 · 카드 미결제 ${d.items.length - acc}건${d.totalCount > d.items.length ? ' (일부만 표시)' : ''}\n가장 오래된 주문: ${fmtDateTime(new Date(d.items[0].createdAt))}`,
+        summary: `${p.label} 미입금·미결제 ${d.totalCount}건 (${won(d.totalAmount)})\n계좌 미입금 ${acc}건 · 카드 미결제 ${d.items.length - acc}건${d.totalCount > d.items.length ? ' (일부만 표시)' : ''}\n가장 오래된 주문: ${fmtDateTime(new Date(d.items[0].createdAt))}`,
         data: d,
         card: { title: '미입금 주문 (오래된 순)', items: d.items.slice(0, 5).map(itemLine), button: { label: '미입금 주문 관리', url: sellerUrl('/seller/order-forms?status=unpaid') } },
       };
@@ -129,15 +129,15 @@ export const sellerbricksTools: BotTool[] = [
   {
     name: 'get_unshipped_orders',
     title: '송장 미입력 주문',
-    description: '결제는 끝났는데 송장(운송장)이 입력되지 않은 주문을 오래된 순으로 돌려준다. delayDays 일 넘게 지난 주문은 발송 지연으로 따로 센다(기본 2일).',
+    description: '결제는 끝났는데 송장(운송장)이 입력되지 않은 주문을 오래된 순으로 돌려준다. delayDays 일 넘게 지난 주문은 발송 지연으로 따로 센다(생략 시 셀러 설정값, 기본 2일).',
     inputSchema: { type: 'object', properties: { delayDays: { type: 'integer', minimum: 1, maximum: 14, default: 2 } }, additionalProperties: false },
     platform: 'SELLERBRICKS',
     async run(ctx, args) {
-      const delayDays = Math.min(14, Math.max(1, Number(args.delayDays) || 2));
+      const delayDays = Math.min(14, Math.max(1, Number(args.delayDays) || Number(ctx.prefs.unshipped_delay_days) || 2));
       const d = await (await sellerbricksApi()).getUnshippedOrders(token(ctx), delayDays);
-      if (!d.totalCount) return { summary: '송장 입력이 필요한 주문이 없어요. 👍', data: d };
+      if (!d.totalCount) return { summary: '송장 입력이 필요한 주문이 없어요.', data: d };
       return {
-        summary: `🚚 송장 미입력 ${d.totalCount}건 (${won(d.totalAmount)})${d.delayedCount ? `\n⚠️ 결제 후 ${d.delayDays}일 넘게 지난 주문 ${d.delayedCount}건 — 먼저 처리해 주세요.` : ''}`,
+        summary: `송장 미입력 ${d.totalCount}건 (${won(d.totalAmount)})${d.delayedCount ? `\n결제 후 ${d.delayDays}일 넘게 지난 주문 ${d.delayedCount}건 — 먼저 처리해 주세요.` : ''}`,
         data: d,
         card: { title: '송장 미입력 (오래된 순)', items: d.items.slice(0, 5).map((o) => ({ title: o.title, description: `${won(o.amount)} · 결제 ${o.paidAt ? fmtDateTime(new Date(o.paidAt)) : '-'}` })), button: { label: '송장 입력하러 가기', url: sellerUrl('/seller/order-forms?status=paid') } },
       };
@@ -155,7 +155,7 @@ export const sellerbricksTools: BotTool[] = [
       const d = await (await sellerbricksApi()).getCancelRequests(token(ctx), args.openOnly === true);
       if (!d.items.length) return { summary: '최근 30일 취소 요청이 없어요.', data: d };
       return {
-        summary: `↩️ 최근 30일 취소 요청 ${d.items.length}건 · 처리 대기 ${d.openCount}건\n` + d.items.slice(0, 3).map((i) => `- ${i.kind === 'PARTIAL' ? '[부분]' : '[전액]'} ${i.title} ${won(i.amount)} → ${i.statusLabel}`).join('\n'),
+        summary: `최근 30일 취소 요청 ${d.items.length}건 · 처리 대기 ${d.openCount}건\n` + d.items.slice(0, 3).map((i) => `- ${i.kind === 'PARTIAL' ? '[부분]' : '[전액]'} ${i.title} ${won(i.amount)} → ${i.statusLabel}`).join('\n'),
         data: d,
         card: { title: '취소 요청', items: d.items.slice(0, 5).map((i) => ({ title: `${i.kind === 'PARTIAL' ? '[부분] ' : ''}${i.title}`, description: `${won(i.amount)} · ${i.statusLabel} · ${fmtDate(new Date(i.requestedAt))}` })), button: { label: '취소 관리 열기', url: sellerUrl('/seller/cancels') } },
       };
@@ -173,7 +173,7 @@ export const sellerbricksTools: BotTool[] = [
       const month = typeof args.month === 'string' && /^\d{4}-\d{2}$/.test(args.month) ? args.month : monthKey(ctx.now);
       const d = await (await sellerbricksApi()).getSettlementSummary(token(ctx), month);
       const lines = [
-        `💰 ${Number(month.slice(5))}월 정산 현황`,
+        `${Number(month.slice(5))}월 정산 현황`,
         `결제 매출 ${won(d.salesAmount)}`,
         `정산 예정액 ${won(d.expectedSettlement)} (수수료 ${d.feeRate}% 차감 · 세전)`,
         `지금 출금 가능 ${won(d.withdrawableAmount)}`,
@@ -202,7 +202,7 @@ export const sellerbricksTools: BotTool[] = [
       const d = await (await sellerbricksApi()).getTopProducts(token(ctx), p.from, p.to, limit);
       if (!d.items.length) return { summary: `${p.label} 판매된 상품이 없어요.`, data: d };
       return {
-        summary: `🏆 ${p.label} 많이 팔린 상품\n` + d.items.map((it, i) => `${i + 1}. ${it.name}${it.linkNo ? ` (${it.linkNo}번)` : ''} — ${it.qty}개 · ${won(it.amount)}`).join('\n'),
+        summary: `${p.label} 많이 팔린 상품\n` + d.items.map((it, i) => `${i + 1}. ${it.name}${it.linkNo ? ` (${it.linkNo}번)` : ''} — ${it.qty}개 · ${won(it.amount)}`).join('\n'),
         data: { period: p.label, ...d },
         card: { title: `${p.label} TOP ${d.items.length}`, items: d.items.slice(0, 5).map((it, i) => ({ title: `${i + 1}. ${it.name}`, description: `${it.qty}개 · ${won(it.amount)}` })), button: { label: '상품 관리 열기', url: sellerUrl('/seller/products') } },
       };
@@ -220,12 +220,12 @@ export const sellerbricksTools: BotTool[] = [
       const q = { linkNo: Number(args.linkNo) || undefined, keyword: typeof args.keyword === 'string' && args.keyword.trim() ? args.keyword.trim() : undefined, lowStock: args.lowStock === true };
       const d = await (await sellerbricksApi()).getProducts(token(ctx), q);
       const stockText = (p: (typeof d.items)[number]) => (p.useStock ? (p.stock === 0 ? '품절' : `재고 ${p.stock}개`) : '재고 관리 안 함');
-      if (!d.items.length) return { summary: q.lowStock ? '품절 임박 상품이 없어요. 👍' : '조건에 맞는 상품이 없어요.', data: d };
-      const head = q.lowStock ? `⚠️ 품절 임박·품절 상품 ${d.items.length}개` : q.linkNo ? `🔢 ${q.linkNo}번 상품` : `🛍️ 상품 ${d.items.length}개`;
+      if (!d.items.length) return { summary: q.lowStock ? '품절 임박 상품이 없어요.' : '조건에 맞는 상품이 없어요.', data: d };
+      const head = q.lowStock ? `품절 임박·품절 상품 ${d.items.length}개` : q.linkNo ? `${q.linkNo}번 상품` : `상품 ${d.items.length}개`;
       return {
         summary: head + '\n' + d.items.slice(0, 10).map((p) => `${p.linkNo ? `${p.linkNo}번 ` : ''}${p.name} — ${won(p.price)} · ${stockText(p)}`).join('\n'),
         data: d,
-        card: { title: head.replace(/^\S+\s/, ''), items: d.items.slice(0, 5).map((p) => ({ title: `${p.linkNo ? `${p.linkNo}번 ` : ''}${p.name}`, description: `${won(p.price)} · ${stockText(p)}` })), button: { label: '상품 관리 열기', url: sellerUrl('/seller/products') } },
+        card: { title: head, items: d.items.slice(0, 5).map((p) => ({ title: `${p.linkNo ? `${p.linkNo}번 ` : ''}${p.name}`, description: `${won(p.price)} · ${stockText(p)}` })), button: { label: '상품 관리 열기', url: sellerUrl('/seller/products') } },
       };
     },
   },
@@ -244,7 +244,7 @@ export const sellerbricksTools: BotTool[] = [
       const d = await (await sellerbricksApi()).searchOrders(token(ctx), query, p.from, p.to);
       if (!d.totalCount) return { summary: `${p.label} "${query}" 주문을 찾지 못했어요.`, data: d };
       return {
-        summary: `🔍 "${query}" 주문 ${d.totalCount}건 (${p.label})\n` + d.items.slice(0, 3).map((o) => `- ${o.title} ${won(o.amount)} · ${o.statusLabel}${o.tracking ? ` · 송장 ${o.tracking}` : ''}`).join('\n'),
+        summary: `"${query}" 주문 ${d.totalCount}건 (${p.label})\n` + d.items.slice(0, 3).map((o) => `- ${o.title} ${won(o.amount)} · ${o.statusLabel}${o.tracking ? ` · 송장 ${o.tracking}` : ''}`).join('\n'),
         data: d,
         card: { title: `"${query}" 주문`, items: d.items.slice(0, 5).map(itemLine), button: { label: '주문 상세 보기', url: d.items[0].adminUrl } },
       };

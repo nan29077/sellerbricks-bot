@@ -5,8 +5,24 @@ import { prisma } from '../../lib/db.js';
 import { config } from '../../lib/config.js';
 import { maskName } from '../../lib/mask.js';
 import { fmtDate, kstStartOfDay, monthKey } from '../../lib/time.js';
+import { randomToken } from '../../lib/crypto.js';
 import {
   type CancelRequests,
+  type CreatedProduct,
+  type CustomerQuery,
+  type CustomerQueryResult,
+  type LiveList,
+  type NewProductInput,
+  type OrderQuery,
+  type OrderQueryResult,
+  type OrderStatusKey,
+  type ProductKind,
+  type ProductQuery,
+  type ProductQueryItem,
+  type ProductQueryResult,
+  type SellerDefaults,
+  type SettlementHistory,
+  type ShopActivity,
   type LinkVerifyResult,
   type LiveOrders,
   type OrderGroupSummary,
@@ -403,7 +419,7 @@ export class MockSellerbricksApi implements SellerbricksApi {
       if (o.cancel && (!openOnly || o.cancel.status !== 'COMPLETED')) {
         items.push({
           kind: 'FULL', orderType: o.type, title: toItem(o).title, amount: o.cancel.amount,
-          statusLabel: { REQUESTED: '관리자 승인 대기', APPROVED: '승인됨 · 환불 처리 중', COMPLETED: '취소 완료' }[o.cancel.status],
+          statusLabel: o.payType === 'ACCOUNT' ? (o.cancel.status === 'COMPLETED' ? '취소 완료 (셀러 직접 환불)' : '셀러 환불 송금 후 취소 기록 필요') : { REQUESTED: '관리자 승인 대기', APPROVED: '승인됨 · PG 취소 처리 중', COMPLETED: '취소 완료' }[o.cancel.status],
           requestedAt: o.cancel.requestedAt.toISOString(), reason: o.cancel.reason, adminUrl: adminUrl(o),
         });
       }
@@ -433,7 +449,7 @@ export class MockSellerbricksApi implements SellerbricksApi {
     // 출금 가능액: 마지막 입금 완료 출금 이후 정산 확정(배송 완료 + 결제 7일 경과)된 금액 − 진행 중 출금
     const lastPaid = [...payouts].reverse().find((p) => p.status === 'PAID');
     const since = lastPaid ? lastPaid.requestedAt.getTime() - 7 * DAY : 0;
-    const matured = paidOk.filter((o) => o.ship === 'DELIVERED' && o.paidAt!.getTime() >= since && now.getTime() - o.paidAt!.getTime() > 7 * DAY);
+    const matured = paidOk.filter((o) => o.paidAt!.getTime() >= since && now.getTime() - o.paidAt!.getTime() > 7 * DAY); // 영업일 5일 ≈ 달력 7일
     const maturedSum = matured.reduce((s, o) => s + net(o), 0);
     const paidOut = payouts.filter((p) => p.status !== 'PAID').reduce((s, p) => s + p.amount, 0);
     const label = { REQUESTED: '출금 신청됨 · 관리자 확인 대기', APPROVED: '승인됨 · 입금 예정', PAID: '입금 완료' } as const;
@@ -446,7 +462,7 @@ export class MockSellerbricksApi implements SellerbricksApi {
       withdrawableAmount: Math.max(0, Math.round((maturedSum - paidOut) / 10) * 10),
       pendingPayout: pending ? { amount: pending.amount, statusLabel: label[pending.status], requestedAt: pending.requestedAt.toISOString() } : null,
       recentPayouts: [...payouts].reverse().map((p) => ({ amount: p.amount, actualPayoutAmount: p.actual, statusLabel: label[p.status], requestedAt: p.requestedAt.toISOString() })),
-      note: '정산 예정액은 플랫폼 수수료 차감 후 세전 금액입니다. 비사업자는 출금 시 원천징수 3.3%가 차감됩니다.',
+      note: '정산은 결제 완료 후 영업일 5일 뒤 출금 가능 금액으로 바뀌어요. 금액은 수수료 차감 후 세전이며, 비사업자는 출금 시 원천징수 3.3%가 빠져요.',
     };
   }
 
@@ -483,4 +499,264 @@ export class MockSellerbricksApi implements SellerbricksApi {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return list(items);
   }
+
+  // ═══════════════ v2 — 범용 조회 ═══════════════
+
+  async queryOrders(t: string, q: OrderQuery): Promise<OrderQueryResult> {
+    const { orders, streams, seller } = this.ds(t);
+    const statuses = q.statuses?.length ? q.statuses : (['UNPAID', 'PAID', 'PREPARING', 'SHIPPING', 'DELIVERED', 'CANCEL_REQUESTED'] as OrderStatusKey[]);
+    let liveId = q.liveStreamId;
+    if (liveId === 'latest') liveId = [...streams].sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())[0]?.id;
+    const buyerQ = q.buyer?.replace(/\s/g, '');
+    const kw = q.productKeyword?.trim();
+    const match = (o: RawOrder, from: Date, to: Date) =>
+      inRange(o.createdAt, from, to) &&
+      (!q.orderType || q.orderType === 'ALL' || o.type === q.orderType) &&
+      (!q.payTypes?.length || q.payTypes.includes(o.payType)) &&
+      statuses.includes(statusKey(o)) &&
+      (!liveId || o.liveStreamId === liveId) &&
+      (!kw || o.items.some((it) => seller.products[it.idx][0].includes(kw))) &&
+      (!buyerQ || (/^\d{4}$/.test(buyerQ) ? o.phone.endsWith(buyerQ) : o.buyerName.includes(buyerQ) || o.nickname.includes(buyerQ))) &&
+      (q.minAmount === undefined || o.amount >= q.minAmount) &&
+      (q.maxAmount === undefined || o.amount <= q.maxAmount);
+    const cur = orders.filter((o) => match(o, q.from, q.to));
+    const paid = cur.filter((o) => o.paidAt && !isCancelled(o));
+    const sum = (a: RawOrder[]) => a.reduce((s2, o) => s2 + o.amount, 0);
+
+    const groups = new Map<string, { key: string; label: string; count: number; amount: number }>();
+    const add = (key: string, label: string, amount: number, countInc = 1) => {
+      const g = groups.get(key) || { key, label, count: 0, amount: 0 };
+      g.count += countInc;
+      g.amount += amount;
+      groups.set(key, g);
+    };
+    const gb = q.groupBy || 'none';
+    for (const o of cur) {
+      const k = new Date(o.createdAt.getTime() + 9 * HOUR);
+      if (gb === 'day') add(k.toISOString().slice(0, 10), fmtDate(o.createdAt), o.amount);
+      else if (gb === 'weekday') add(String(k.getUTCDay()), '일월화수목금토'[k.getUTCDay()] + '요일', o.amount);
+      else if (gb === 'hour') add(String(k.getUTCHours()).padStart(2, '0'), `${k.getUTCHours()}시`, o.amount);
+      else if (gb === 'payType') add(o.payType, { ACCOUNT: '계좌입금', CARD: '카드', PG: '일반결제' }[o.payType], o.amount);
+      else if (gb === 'status') add(statusKey(o), statusLabel(o), o.amount);
+      else if (gb === 'live') {
+        const st = streams.find((x) => x.id === o.liveStreamId);
+        add(o.liveStreamId || 'none', st ? st.title : '방송 외 주문', o.amount);
+      } else if (gb === 'buyer') add(o.phone, `${o.nickname}(${maskName(o.buyerName)})`, o.amount);
+      else if (gb === 'product') for (const it of o.items) add(String(it.idx), seller.products[it.idx][0], seller.products[it.idx][1] * it.qty, it.qty);
+    }
+    let gl = [...groups.values()];
+    gl = gb === 'day' || gb === 'hour' || gb === 'weekday' ? gl.sort((a, b) => a.key.localeCompare(b.key)) : gl.sort((a, b) => b.amount - a.amount);
+
+    let previous = null;
+    if (q.compare) {
+      const len = Math.min(q.to.getTime(), this.now().getTime()) - q.from.getTime();
+      const pf = new Date(q.from.getTime() - (q.to.getTime() - q.from.getTime()));
+      const prev = orders.filter((o) => match(o, pf, new Date(pf.getTime() + len)));
+      previous = { count: prev.length, amount: sum(prev) };
+    }
+    const limit = Math.min(30, Math.max(0, q.limit ?? 10));
+    const sorted = [...cur].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return {
+      from: q.from.toISOString(),
+      to: q.to.toISOString(),
+      totals: { count: cur.length, amount: sum(cur), paidCount: paid.length, paidAmount: sum(paid), avgAmount: cur.length ? Math.round(sum(cur) / cur.length) : 0 },
+      groups: gl.slice(0, 31),
+      previous,
+      items: sorted.slice(0, limit).map(toItem),
+      truncated: cur.length > limit,
+    };
+  }
+
+  async queryProducts(t: string, q: ProductQuery): Promise<ProductQueryResult> {
+    const ds = this.ds(t);
+    const store = storeOf(ds.seller.id);
+    const now = this.now();
+    const from = q.salesFrom ?? new Date(now.getTime() - 30 * DAY);
+    const to = q.salesTo ?? now;
+    const sales = new Map<string, { qty: number; amount: number }>();
+    for (const o of ds.orders.filter((x) => inRange(x.createdAt, from, to) && x.paidAt && !isCancelled(x)))
+      for (const it of o.items) {
+        const key = `${o.type === 'ORDER_FORM' ? 'QUICK' : 'DIRECT'}:${it.idx}`;
+        const v = sales.get(key) || { qty: 0, amount: 0 };
+        v.qty += it.qty;
+        v.amount += ds.seller.products[it.idx][1] * it.qty;
+        sales.set(key, v);
+      }
+    const all: ProductQueryItem[] = [];
+    ds.seller.products.forEach(([name, price], i) => {
+      const sv = sales.get(`QUICK:${i}`) || { qty: 0, amount: 0 };
+      all.push({ kind: 'QUICK', id: `qp_${i}`, linkNo: i + 1, name, price, useStock: ds.stock[i] >= 0, stock: Math.max(0, ds.stock[i]), isActive: !store.inactive.has(`qp_${i}`), soldQty: sv.qty, soldAmount: sv.amount, imageUrl: null, adminUrl: `${config.sellerbricksWebUrl}/seller/quick-products` });
+      if (i < 5) {
+        const dv = sales.get(`DIRECT:${i}`) || { qty: 0, amount: 0 };
+        all.push({ kind: 'DIRECT', id: `dp_${i}`, linkNo: null, name, price, useStock: true, stock: (i * 7 + 3) % 31, isActive: !store.inactive.has(`dp_${i}`), soldQty: dv.qty, soldAmount: dv.amount, imageUrl: null, adminUrl: `${config.sellerbricksWebUrl}/seller/products?tab=direct` });
+      }
+    });
+    for (const c of store.created) all.push({ ...c, isActive: !store.inactive.has(c.id) });
+    let items = all;
+    if (q.scope && q.scope !== 'ALL') items = items.filter((p) => p.kind === q.scope);
+    if (q.linkNo) items = items.filter((p) => p.linkNo === q.linkNo);
+    if (q.keyword) items = items.filter((p) => p.name.includes(q.keyword!));
+    if (q.activeOnly) items = items.filter((p) => p.isActive);
+    if (q.lowStock) items = items.filter((p) => p.useStock && p.stock <= 5);
+    const sortBy = q.sortBy || (q.lowStock ? 'stock' : 'recent');
+    if (sortBy === 'sales') items.sort((a, b) => b.soldAmount - a.soldAmount);
+    if (sortBy === 'stock') items.sort((a, b) => a.stock - b.stock);
+    if (sortBy === 'price') items.sort((a, b) => b.price - a.price);
+    return { items: items.slice(0, Math.min(50, q.limit ?? 20)), totalCount: items.length };
+  }
+
+  async queryCustomers(t: string, q: CustomerQuery): Promise<CustomerQueryResult> {
+    const { orders, seller } = this.ds(t);
+    const m = new Map<string, { buyer: string; phoneLast4: string; orderCount: number; amount: number; last: Date }>();
+    for (const o of orders.filter((x) => inRange(x.createdAt, q.from, q.to) && x.paidAt && !isCancelled(x))) {
+      const c = m.get(o.phone) || { buyer: `${o.nickname}(${maskName(o.buyerName)})`, phoneLast4: o.phone.slice(-4), orderCount: 0, amount: 0, last: o.createdAt };
+      c.orderCount++;
+      c.amount += o.amount;
+      if (o.createdAt > c.last) c.last = o.createdAt;
+      m.set(o.phone, c);
+    }
+    const arr = [...m.values()];
+    const repeat = arr.filter((c) => c.orderCount >= 2).length;
+    arr.sort((a, b) => (q.sortBy === 'count' ? b.orderCount - a.orderCount || b.amount - a.amount : b.amount - a.amount));
+    const r = rng(hashSeed(`${seller.id}:fans:${q.from.toISOString()}`));
+    return {
+      totalBuyers: arr.length,
+      repeatBuyers: repeat,
+      repeatRate: arr.length ? Math.round((repeat / arr.length) * 100) : 0,
+      newFans: 3 + Math.floor(r() * 25),
+      items: arr.slice(0, Math.min(20, q.limit ?? 10)).map((c) => ({ buyer: c.buyer, phoneLast4: c.phoneLast4, orderCount: c.orderCount, amount: c.amount, lastOrderAt: c.last.toISOString() })),
+    };
+  }
+
+  async getSettlementHistory(t: string, fromMonth: string, toMonth: string): Promise<SettlementHistory> {
+    const { orders } = this.ds(t);
+    const months = new Map<string, { month: string; salesAmount: number; commission: number; expectedSettlement: number }>();
+    for (const o of orders.filter((x) => x.paidAt && !isCancelled(x))) {
+      const mk = monthKey(o.paidAt!);
+      if (mk < fromMonth || mk > toMonth) continue;
+      const v = months.get(mk) || { month: mk, salesAmount: 0, commission: 0, expectedSettlement: 0 };
+      const amt = o.amount - (o.partial?.status === 'APPROVED' ? o.partial.amount : 0);
+      v.salesAmount += amt;
+      v.commission += Math.round(amt * 0.05);
+      v.expectedSettlement += Math.round(amt * 0.95);
+      months.set(mk, v);
+    }
+    return { months: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)), settlementBusinessDays: 5 };
+  }
+
+  async getLives(t: string, limit: number): Promise<LiveList> {
+    const { orders, streams, seller } = this.ds(t);
+    const now = this.now();
+    const today = kstStartOfDay(now);
+    const upcoming = [1, 3, 5].map((d) => {
+      const at = new Date(today.getTime() + d * DAY + 20 * HOUR);
+      return { id: `ls_up_${d}`, title: `${fmtDate(at)} ${seller.theme} 라이브 (예정)`, scheduledAt: at.toISOString() };
+    });
+    const recent = [...streams]
+      .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+      .slice(0, Math.min(10, limit))
+      .map((s2) => {
+        const so = orders.filter((o) => o.liveStreamId === s2.id && !isCancelled(o));
+        return { id: s2.id, title: s2.title, startedAt: s2.startedAt.toISOString(), endedAt: s2.endedAt ? s2.endedAt.toISOString() : null, peakViewerCount: s2.peak, orderCount: so.length, amount: so.reduce((a, o) => a + o.amount, 0), paidAmount: so.filter((o) => o.paidAt).reduce((a, o) => a + o.amount, 0) };
+      });
+    return { upcoming, recent };
+  }
+
+  async getShopActivity(t: string): Promise<ShopActivity> {
+    const { streams, seller } = this.ds(t);
+    const now = this.now();
+    const r = rng(hashSeed(`${seller.id}:act:${kstStartOfDay(now).toISOString()}`));
+    const live = streams.find((s2) => !s2.endedAt);
+    const lives = await this.getLives(t, 1);
+    const prods = seller.products;
+    const reviews = [
+      { product: prods[0][0], rating: 5, text: '배송 빠르고 좋아요! 또 살게요', createdAt: new Date(now.getTime() - 5 * HOUR).toISOString() },
+      { product: prods[2][0], rating: 3, text: '생각보다 양이 적어요', createdAt: new Date(now.getTime() - 26 * HOUR).toISOString() },
+      { product: prods[1][0], rating: 4, text: '방송에서 본 것과 같아요', createdAt: new Date(now.getTime() - 50 * HOUR).toISOString() },
+    ];
+    const chats = [
+      { product: prods[3][0], text: '오늘 주문하면 언제 받을 수 있나요?', createdAt: new Date(now.getTime() - 2 * HOUR).toISOString() },
+      { product: prods[0][0], text: '다른 색상도 있나요?', createdAt: new Date(now.getTime() - 9 * HOUR).toISOString() },
+    ];
+    const nr = 1 + Math.floor(r() * 3);
+    const nc = Math.floor(r() * 3);
+    return {
+      liveNow: live ? { id: live.id, title: live.title, startedAt: live.startedAt.toISOString() } : null,
+      nextLive: lives.upcoming[0] ?? null,
+      moMessages: { today: Math.floor(r() * 30), last7Days: 40 + Math.floor(r() * 120) },
+      alimtalkCredit: 1200 + Math.floor(r() * 8000),
+      unansweredReviews: { count: nr, items: reviews.slice(0, nr) },
+      unreadProductChats: { count: nc, items: chats.slice(0, nc) },
+      newFans: { last7Days: 2 + Math.floor(r() * 20), total: 300 + Math.floor(r() * 900) },
+      visitors: { today: 20 + Math.floor(r() * 200), yesterday: 50 + Math.floor(r() * 300), last7Days: 600 + Math.floor(r() * 1500) },
+    };
+  }
+
+  async getSellerDefaults(t: string): Promise<SellerDefaults> {
+    const { seller } = this.ds(t);
+    return { shopName: seller.name, shopUrl: `${config.sellerbricksWebUrl}/shop/${seller.id}`, shippingFee: seller.id === 'mock-seller-3' ? 4000 : 3000, freeShippingThreshold: 50000 };
+  }
+
+  // ═══════════════ v2 — 쓰기 (가짜) ═══════════════
+
+  async uploadImage(t: string, img: { base64: string; contentType: string }): Promise<{ url: string }> {
+    accountOf(t);
+    const token = randomToken(18);
+    await prisma.storedImage.create({ data: { token, contentType: img.contentType, bytes: Buffer.from(img.base64, 'base64') } });
+    return { url: `/img/${token}` };
+  }
+
+  async createDirectProduct(t: string, p: NewProductInput): Promise<CreatedProduct> {
+    return this.create(t, 'DIRECT', p);
+  }
+
+  async createQuickProduct(t: string, p: NewProductInput): Promise<CreatedProduct> {
+    return this.create(t, 'QUICK', p);
+  }
+
+  private create(t: string, kind: ProductKind, p: NewProductInput): CreatedProduct {
+    const ds = this.ds(t);
+    const store = storeOf(ds.seller.id);
+    const idem = `${kind}:${p.idempotencyKey}`;
+    const done = store.idem.get(idem);
+    if (done) return done;
+    if (!p.name?.trim() || !(p.price >= 0)) throw new PlatformError('BAD_REQUEST', '상품명과 가격이 필요합니다.');
+    const maxLink = Math.max(ds.seller.products.length, ...store.created.filter((c) => c.kind === 'QUICK').map((c) => c.linkNo ?? 0));
+    const id = `${kind === 'QUICK' ? 'qp' : 'dp'}_new_${store.created.length + 1}`;
+    const linkNo = kind === 'QUICK' ? maxLink + 1 : null;
+    const adminUrl = kind === 'QUICK' ? `${config.sellerbricksWebUrl}/seller/quick-products` : `${config.sellerbricksWebUrl}/seller/products?tab=direct`;
+    store.created.push({ kind, id, linkNo, name: p.name, price: p.price, useStock: p.stock !== null, stock: p.stock ?? 0, isActive: true, soldQty: 0, soldAmount: 0, imageUrl: p.images?.[0] ?? null, adminUrl });
+    const r: CreatedProduct = { kind, id, linkNo, adminUrl, shopUrl: kind === 'DIRECT' ? `${config.sellerbricksWebUrl}/shop/${ds.seller.id}?tab=direct` : null };
+    store.idem.set(idem, r);
+    return r;
+  }
+
+  async setProductActive(t: string, _kind: ProductKind, id: string, active: boolean): Promise<void> {
+    const store = storeOf(this.ds(t).seller.id);
+    if (active) store.inactive.delete(id);
+    else store.inactive.add(id);
+  }
+}
+
+// ── 가짜 쓰기 저장소 (서버 재시작 시 초기화) ──
+interface MockStore {
+  created: ProductQueryItem[];
+  inactive: Set<string>;
+  idem: Map<string, CreatedProduct>;
+}
+const stores = new Map<string, MockStore>();
+function storeOf(accountId: string): MockStore {
+  let st = stores.get(accountId);
+  if (!st) {
+    st = { created: [], inactive: new Set(), idem: new Map() };
+    stores.set(accountId, st);
+  }
+  return st;
+}
+
+function statusKey(o: RawOrder): OrderStatusKey {
+  if (o.cancel && o.cancel.status !== 'REQUESTED') return 'CANCELLED';
+  if (o.cancel) return 'CANCEL_REQUESTED';
+  if (!o.paidAt) return 'UNPAID';
+  return o.ship === 'PENDING' ? 'PAID' : o.ship;
 }

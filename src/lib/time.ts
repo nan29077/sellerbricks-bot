@@ -76,3 +76,28 @@ export function monthKey(d: Date = new Date()): string {
 }
 
 export const won = (n: number) => `${Math.round(n).toLocaleString('ko-KR')}원`;
+
+/** 'YYYY-MM-DD'(KST) → 그날 0시(UTC Date) */
+export function kstDate(ymd: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd || '');
+  if (!m) return null;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]) - KST);
+}
+
+/** 도구 인자(period 또는 from/to)로 기간 계산. to 는 그날 포함 */
+export function rangeFromArgs(args: Record<string, unknown>, def: PeriodKey, now: Date = new Date()): Period {
+  const f = typeof args.from === 'string' ? kstDate(args.from) : null;
+  const t = typeof args.to === 'string' ? kstDate(args.to) : null;
+  if (f) {
+    const to = t ? new Date(t.getTime() + DAY) : new Date(kstStartOfDay(now).getTime() + DAY);
+    if (to > f && to.getTime() - f.getTime() <= 400 * DAY) return { from: f, to, label: `${fmtDate(f)}~${fmtDate(new Date(to.getTime() - DAY))}` };
+  }
+  const k = PERIOD_KEYS.includes(args.period as PeriodKey) ? (args.period as PeriodKey) : def;
+  return periodOf(k, now);
+}
+
+export function addMonths(month: string, n: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}

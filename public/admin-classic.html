@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>sellerbricks-bot 관리자</title>
+<link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --line:#e3e6ea; --text:#1d2129; --sub:#6b7280; --brand:#f5a700; --brand-d:#c98700; --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --kakao:#fee500; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; background:var(--bg); color:var(--text); font-size:14px; }
+  header { background:#1d2129; color:#fff; padding:12px 20px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:5; }
+  h1 .brand-logo, h2 .brand-logo { width: 27px; height: 27px; vertical-align: middle; margin-right: 7px; }
+  .section-line { width: 17px; height: 17px; vertical-align: -2px; margin-right: 5px; }
+  header h1 { font-size:16px; margin:0; font-weight:700; }
+  header .sp { flex:1; }
+  main { max-width:1100px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
+  .card h2 { font-size:16px; margin:0 0 4px; }
+  .card .desc { color:var(--sub); font-size:13px; margin:0 0 14px; }
+  .keycard { border:2px solid var(--brand); box-shadow:0 2px 0 rgba(245,167,0,.2); }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:760px){ .grid2 { grid-template-columns:1fr; } }
+  .box { border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .box h3 { margin:0 0 8px; font-size:15px; display:flex; align-items:center; gap:8px; }
+  label { display:block; font-size:12px; color:var(--sub); margin:10px 0 4px; }
+  input[type=text], input[type=password], input[type=number], select { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .row > input, .row > select { flex:1; min-width:140px; }
+  button { padding:9px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; font-size:13px; white-space:nowrap; }
+  button.primary { background:var(--brand); border-color:var(--brand); color:#fff; font-weight:600; }
+  button.primary:hover { background:var(--brand-d); }
+  button.danger { color:var(--bad); }
+  button:disabled { opacity:.5; cursor:default; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+  .b-none { background:#fee2e2; color:var(--bad); } .b-unt { background:#fef3c7; color:var(--warn); } .b-ok { background:#dcfce7; color:var(--ok); } .b-fail { background:#fee2e2; color:var(--bad); }
+  .b-mock { background:#fef3c7; color:#92400e; } .b-live { background:#dcfce7; color:var(--ok); } .b-off { background:#eceff3; color:var(--sub); }
+  .muted { color:var(--sub); font-size:12px; }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size:12px; word-break:break-all; }
+  .warn { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:10px 14px; border-radius:10px; margin-bottom:12px; }
+  .modebar { padding:12px 16px; border-radius:10px; margin-bottom:16px; font-weight:600; }
+  .modebar.mock { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
+  .modebar.live { background:#dcfce7; color:#166534; border:1px solid #bbf7d0; }
+  .radios { display:flex; gap:8px; flex-wrap:wrap; }
+  .radios label { margin:0; display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:8px; padding:8px 12px; color:var(--text); font-size:14px; cursor:pointer; }
+  .radios input { margin:0; }
+  /* 채팅 */
+  .chat { background:#b2c7da; border-radius:12px; height:460px; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:8px; }
+  .chat > * { flex-shrink:0; }
+  .msg { max-width:82%; padding:9px 12px; border-radius:12px; white-space:pre-wrap; line-height:1.45; font-size:13.5px; }
+  .msg.me { align-self:flex-end; background:var(--kakao); }
+  .msg.bot { align-self:flex-start; background:#fff; }
+  .meta { align-self:flex-start; font-size:11px; color:#334155; margin-top:-4px; }
+  .lcard { align-self:flex-start; background:#fff; border-radius:12px; width:82%; max-width:340px; overflow:hidden; }
+  .lcard .hd { padding:10px 12px; font-weight:700; border-bottom:1px solid var(--line); }
+  .lcard .it { padding:8px 12px; border-bottom:1px solid #f1f3f5; }
+  .lcard .it b { display:block; font-size:13px; font-weight:600; }
+  .lcard .it span { font-size:12px; color:var(--sub); }
+  .lcard a { display:block; text-align:center; padding:9px; color:var(--text); text-decoration:none; font-size:13px; background:#fafafa; }
+  .bcard { align-self:flex-start; background:#fff; border-radius:12px; width:82%; max-width:300px; overflow:hidden; }
+  .bcard img { width:100%; max-height:200px; object-fit:cover; display:block; background:#eee; }
+  .bcard .bd { padding:10px 12px; } .bcard .bd b { display:block; margin-bottom:4px; } .bcard .bd span { white-space:pre-wrap; font-size:12.5px; color:#475569; }
+  .bcard button, .bcard a.b { display:block; width:100%; border:0; border-top:1px solid var(--line); border-radius:0; padding:9px; background:#fafafa; text-align:center; color:var(--text); text-decoration:none; font-size:13px; }
+  .imgprev { font-size:12px; color:var(--sub); }
+  .qrs { display:flex; gap:6px; flex-wrap:wrap; align-self:flex-start; }
+  .qrs button { border-radius:999px; padding:6px 12px; font-size:12px; background:#fff; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { text-align:left; padding:7px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--sub); font-weight:600; }
+  .codebox { font-size:26px; font-weight:800; letter-spacing:4px; font-family:ui-monospace, Consolas, monospace; }
+  #login { max-width:360px; margin:12vh auto; }
+  .hidden { display:none !important; }
+  details summary { cursor:pointer; color:var(--sub); font-size:12px; }
+  pre { background:#0f172a; color:#e2e8f0; padding:10px; border-radius:8px; overflow:auto; font-size:11.5px; max-height:260px; }
+</style>
+</head>
+<body>
+
+<div id="login" class="card hidden">
+  <h2><img class="brand-logo" src="/assets/logo.svg" alt="">sellerbricks-bot 관리자</h2>
+  <p class="desc">.env 의 ADMIN_PASSWORD 로 로그인하세요.</p>
+  <input type="password" id="pw" placeholder="관리자 비밀번호" onkeydown="if(event.key==='Enter')login()" />
+  <div class="row" style="margin-top:10px"><button class="primary" onclick="login()">로그인</button><span id="loginErr" class="muted" style="color:var(--bad)"></span></div>
+</div>
+
+<div id="app" class="hidden">
+<header>
+  <h1><img class="brand-logo" src="/assets/logo.svg" alt="">sellerbricks-bot 관리자</h1>
+  <span id="hdrMode" class="badge"></span>
+  <span class="sp"></span>
+  <button onclick="logout()" style="background:transparent;color:#fff;border-color:#475569">로그아웃</button>
+</header>
+<main>
+  <div id="warns"></div>
+  <div id="modebar" class="modebar"></div>
+
+  <!-- 1. API 키 (가장 먼저) -->
+  <section class="card keycard">
+    <h2><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8 2 2m-5 1 2 2"/></svg>API 키 설정</h2>
+    <p class="desc">Claude 또는 GPT 키를 붙여넣고 [저장]을 누르면 바로 연결 테스트까지 합니다. 키가 없으면 <b>가짜 응답 모드</b>로 동작합니다. 키는 암호화되어 이 서버에만 저장됩니다.</p>
+    <div class="grid2">
+      <div class="box" id="key-anthropic">
+        <h3>Claude (Anthropic) <span class="badge" data-k="badge"></span></h3>
+        <div class="muted" data-k="cur"></div>
+        <label>새 키 입력 (sk-ant-…)</label>
+        <div class="row"><input type="password" data-k="input" placeholder="sk-ant-api03-..." autocomplete="off" /><button class="primary" onclick="saveKey('anthropic')">저장</button></div>
+        <div class="row" style="margin-top:8px"><button onclick="testKey('anthropic')">연결 테스트</button><button class="danger" onclick="delKey('anthropic')">삭제</button></div>
+        <div class="muted" data-k="msg" style="margin-top:6px"></div>
+        <div class="muted" style="margin-top:6px">발급: console.anthropic.com → API Keys</div>
+      </div>
+      <div class="box" id="key-openai">
+        <h3>GPT (OpenAI) <span class="badge" data-k="badge"></span></h3>
+        <div class="muted" data-k="cur"></div>
+        <label>새 키 입력 (sk-…)</label>
+        <div class="row"><input type="password" data-k="input" placeholder="sk-proj-..." autocomplete="off" /><button class="primary" onclick="saveKey('openai')">저장</button></div>
+        <div class="row" style="margin-top:8px"><button onclick="testKey('openai')">연결 테스트</button><button class="danger" onclick="delKey('openai')">삭제</button></div>
+        <div class="muted" data-k="msg" style="margin-top:6px"></div>
+        <div class="muted" style="margin-top:6px">발급: platform.openai.com → API keys</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. AI 선택 -->
+  <section class="card">
+    <h2><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 5 4 8 9 9-5 1-8 4-9 9-1-5-4-8-9-9 5-1 8-4 9-9Z"/></svg>사용할 AI 선택</h2>
+    <p class="desc">고른 AI 의 키가 없으면 자동으로 가짜 응답 모드로 동작합니다. AI 호출이 실패해도 셀러에게는 가짜 응답 모드로 대신 답하고, 오류는 아래 로그에 남습니다.</p>
+    <div class="radios" id="provRadios">
+      <label><input type="radio" name="prov" value="CLAUDE" /> Claude</label>
+      <label><input type="radio" name="prov" value="GPT" /> GPT</label>
+      <label><input type="radio" name="prov" value="MOCK" /> 가짜 응답 모드 (AI 안 씀)</label>
+    </div>
+    <div class="grid2" style="margin-top:6px">
+      <div><label>Claude 모델</label><input type="text" id="claudeModel" list="claudePresets" /><datalist id="claudePresets"></datalist></div>
+      <div><label>GPT 모델</label><input type="text" id="gptModel" list="gptPresets" /><datalist id="gptPresets"></datalist></div>
+    </div>
+    <div class="grid2">
+      <div><label>월 AI 질문 상한 (0 = 제한 없음, 넘으면 가짜 응답 모드로 안내)</label><input type="number" id="monthlyLimit" min="0" /></div>
+      <div><label>이번 달 사용량</label><div id="usage" style="padding:9px 0"></div></div>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="primary" onclick="saveLlm()">AI 설정 저장</button><span id="llmMsg" class="muted"></span></div>
+  </section>
+
+  <!-- 3. 테스트 채팅 -->
+  <section class="card">
+    <h2><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v12H9l-5 4V5Zm4 5h8m-8 3h6"/></svg>테스트 채팅</h2>
+    <p class="desc">카카오 연결 없이 카톡과 같은 답변(말풍선·리스트 카드·사진 카드·바로가기 버튼)을 확인합니다. 먼저 오른쪽에서 <b>가짜 셀러 연결 코드</b>를 받아 "연결 123456" 을 보내세요. 사진을 첨부해 <b>상품 등록</b>도 시험할 수 있어요.</p>
+    <div class="grid2">
+      <div>
+        <div class="chat" id="chat"></div>
+        <div class="row" style="margin-top:8px">
+          <label style="margin:0;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff" title="사진 첨부"><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3"/><path d="M9 6V3h6v3"/></svg><input type="file" id="chatImg" accept="image/*" style="display:none" onchange="pickImg()" /></label>
+          <input type="text" id="chatInput" placeholder="예) 오늘 주문 정리해줘" onkeydown="if(event.key==='Enter'&&!event.isComposing)send()" />
+          <button class="primary" onclick="send()">보내기</button>
+        </div>
+        <div id="imgPrev" class="imgprev"></div>
+      </div>
+      <div>
+        <div class="box">
+          <h3>가짜 셀러 연결 코드</h3>
+          <div class="row"><select id="mockSeller"></select><button onclick="issueCode()">코드 발급</button></div>
+          <div id="codeOut" style="margin-top:10px"></div>
+        </div>
+        <div class="box" style="margin-top:12px">
+          <h3>테스트 사용자</h3>
+          <label>botUserKey (카카오 사용자 키 대신 쓰는 값)</label>
+          <div class="row"><input type="text" id="testUser" value="admin-test-user" /><button onclick="clearChat()">화면 지우기</button></div>
+          <div class="muted" style="margin-top:6px">값을 바꾸면 다른 셀러처럼 따로 연결해 볼 수 있어요.</div>
+        </div>
+        <div class="box" style="margin-top:12px">
+          <h3>빠른 질문</h3>
+          <div class="qrs" id="samples"></div>
+        </div>
+        <details style="margin-top:12px"><summary>마지막 카카오 응답 JSON 보기</summary><pre id="lastJson"></pre></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. 플랫폼 연결 -->
+  <section class="card">
+    <h2><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="m10 14 4-4m-6 6-1 1a3 3 0 0 1-4-4l4-4a3 3 0 0 1 4 0m2 6a3 3 0 0 0 4 0l4-4a3 3 0 0 0-4-4l-1 1"/></svg>플랫폼 연결</h2>
+    <p class="desc">지금은 <b>가짜 데이터</b>로 동작합니다. 셀러브릭스 내부 봇 API(docs/04_플랫폼API명세.md)가 준비되면 주소와 서명 키를 넣고 <b>실제</b>로 바꾸세요.</p>
+    <div class="grid2">
+      <div class="box">
+        <h3>셀러브릭스 <span class="badge" id="sbBadge"></span></h3>
+        <div class="radios" id="sbMode">
+          <label><input type="radio" name="sbm" value="MOCK" /> 가짜 데이터</label>
+          <label><input type="radio" name="sbm" value="LIVE" /> 실제 API</label>
+          <label><input type="radio" name="sbm" value="OFF" /> 끄기</label>
+        </div>
+        <label>API 주소 (예: https://sellerbricks.co.kr)</label><input type="text" id="sbUrl" />
+        <label>서명 키 <span id="sbKeyCur" class="muted"></span></label><input type="password" id="sbKey" placeholder="바꿀 때만 입력" autocomplete="off" />
+        <div class="row" style="margin-top:10px"><button class="primary" onclick="savePlatform('sellerbricks')">저장</button><span id="sbMsg" class="muted"></span></div>
+      </div>
+      <div class="box">
+        <h3>셀러브릭스 스튜디오 <span class="badge b-off">배포 후 오픈</span></h3>
+        <p class="muted">스튜디오 실서버 배포(2026-11-16 주간 예정) 후 내부 봇 API 를 만들고 여기서 켭니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. 카카오 -->
+  <section class="card">
+    <h2><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>카카오 스킬 주소</h2>
+    <p class="desc">오픈빌더 → 스킬 → URL 에 <b>https://도메인</b> + 아래 경로를 넣습니다. 경로의 비밀값이 외부 호출을 막으니 공유하지 마세요.</p>
+    <div class="row"><input type="text" id="skillPath" readonly class="mono" /><button onclick="copy('skillPath')">복사</button></div>
+    <div class="muted" style="margin-top:6px">로컬 예시: <span id="skillExample" class="mono"></span></div>
+  </section>
+
+  <!-- 6. 사용자 -->
+  <section class="card">
+    <h2><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2m2-15a3 3 0 0 1 0 6m4 9v-2a4 4 0 0 0-3-4"/></svg>챗봇 사용자 · 연결 상태</h2>
+    <div class="row" style="margin-bottom:8px"><button onclick="loadUsers()">새로고침</button></div>
+    <div id="users"></div>
+  </section>
+
+  <!-- 7. 로그 -->
+  <section class="card">
+    <h2><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6m-6 4h6m-6 4h4"/></svg>최근 대화 로그</h2>
+    <p class="desc">전화번호 등 개인정보는 가려서 저장됩니다.</p>
+    <div class="row" style="margin-bottom:8px"><button onclick="loadLogs()">새로고침</button></div>
+    <div id="logs" style="overflow-x:auto"></div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="card">
+    <h2><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h7l1 2 1-2h7v15h-7l-1 2-1-2H4Zm8 2v15"/></svg>FAQ · 사용법 (챗봇 지식베이스)</h2>
+    <p class="desc">셀러가 "어떻게 해요?", "언제 들어와요?" 같은 질문을 하면 여기서 찾아 답합니다. 초안은 셀러브릭스 코드를 읽어 만들었으니 <b>운영 전에 실제 정책과 맞는지 확인</b>해 주세요.</p>
+    <div class="row" style="margin-bottom:8px"><input type="text" id="faqQ" placeholder="검색 시험: 정산 언제 들어와요?" /><button onclick="faqTest()">검색 시험</button><button class="primary" onclick="faqEdit()">새 FAQ</button></div>
+    <div id="faqTestOut" class="muted" style="margin-bottom:8px"></div>
+    <div id="faqForm" class="box hidden" style="margin-bottom:10px">
+      <input type="hidden" id="faqId" />
+      <div class="grid2"><div><label>분류</label><input type="text" id="faqCat" /></div><div><label>검색 키워드 (띄어쓰기로 구분)</label><input type="text" id="faqKw" /></div></div>
+      <label>질문</label><input type="text" id="faqQuestion" />
+      <label>답변</label><textarea id="faqAnswer" rows="5" style="width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;font:inherit"></textarea>
+      <div class="row" style="margin-top:8px"><button class="primary" onclick="faqSave()">저장</button><button onclick="$('#faqForm').classList.add('hidden')">닫기</button><span id="faqMsg" class="muted"></span></div>
+    </div>
+    <div id="faqList" style="overflow-x:auto"></div>
+  </section>
+
+  <!-- 결과물 -->
+  <section class="card">
+    <h2><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H5v18h14V9Zm0 0v6h6m-10 5h6m-6 3h6"/></svg>결과물 열람 기록</h2>
+    <p class="desc">챗봇이 만든 결과 페이지·엑셀 링크입니다. 링크는 셀러 전용이며 일정 시간 뒤 만료됩니다.</p>
+    <div class="row" style="margin-bottom:8px"><button onclick="loadArtifacts()">새로고침</button></div>
+    <div id="artifacts" style="overflow-x:auto"></div>
+  </section>
+
+  <!-- 8. 도구 -->
+  <section class="card">
+    <h2><svg class="section-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3M3 13h18"/></svg>도구 목록 (MCP 형식)</h2>
+    <p class="desc">AI 가 호출하는 도구입니다. 같은 형식으로 나중에 카카오 PlayMCP 에 등록할 수 있습니다.</p>
+    <div id="tools"></div>
+  </section>
+</main>
+</div>
+
+<script>
+const $ = (s, el=document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let STATE = null;
+
+async function api(path, opts={}) {
+  const res = await fetch(path, { method: opts.method || (opts.body ? 'POST' : 'GET'), headers: opts.body ? {'Content-Type':'application/json'} : {}, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  if (res.status === 401 && !path.endsWith('/login')) { showLogin(); throw new Error('로그인 필요'); }
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || ('오류 ' + res.status));
+  return j;
+}
+
+function showLogin(){ $('#login').classList.remove('hidden'); $('#app').classList.add('hidden'); $('#pw').focus(); }
+async function login(){
+  $('#loginErr').textContent = '';
+  try { await api('/admin/api/login', { body: { password: $('#pw').value } }); $('#pw').value=''; boot(); }
+  catch(e){ $('#loginErr').textContent = e.message; }
+}
+async function logout(){ await api('/admin/api/logout', { body: {} }); showLogin(); }
+
+const KEY_BADGE = { NONE:['b-none','미입력'], UNTESTED:['b-unt','확인 전'], OK:['b-ok','연결 확인됨'], FAIL:['b-fail','연결 실패'] };
+function renderKey(name, info){
+  const box = $('#key-'+name);
+  const [cls, txt] = KEY_BADGE[info.status] || KEY_BADGE.NONE;
+  const b = $('[data-k=badge]', box); b.className = 'badge ' + cls; b.textContent = txt;
+  $('[data-k=cur]', box).innerHTML = info.masked ? `현재 키: <span class="mono">${esc(info.masked)}</span> ${info.source==='ENV'?'<span class="badge b-off">.env 에서 읽음</span>':''}` : '저장된 키 없음 → 가짜 응답 모드';
+  $('[data-k=msg]', box).textContent = info.message ? `${info.message}${info.testedAt ? ' · ' + new Date(info.testedAt).toLocaleString('ko-KR') : ''}` : '';
+}
+
+function render(){
+  const s = STATE;
+  $('#warns').innerHTML = s.warnings.map(w => `<div class="warn">${esc(w)}</div>`).join('');
+  const mock = s.llm.effective === 'MOCK';
+  const name = { CLAUDE:'Claude', GPT:'GPT', MOCK:'가짜 응답' };
+  $('#modebar').className = 'modebar ' + (mock ? 'mock' : 'live');
+  $('#modebar').textContent = mock ? `가짜 응답 모드로 동작 중 — ${s.llm.reason}` : `${name[s.llm.effective]} 사용 중 (${s.llm.effective==='CLAUDE'?s.llm.claudeModel:s.llm.gptModel})`;
+  $('#hdrMode').className = 'badge ' + (mock ? 'b-mock' : 'b-live'); $('#hdrMode').textContent = mock ? '가짜 응답 모드' : name[s.llm.effective];
+  renderKey('anthropic', s.keys.anthropic); renderKey('openai', s.keys.openai);
+  document.querySelectorAll('input[name=prov]').forEach(r => r.checked = r.value === s.llm.selected);
+  $('#claudeModel').value = s.llm.claudeModel; $('#gptModel').value = s.llm.gptModel; $('#monthlyLimit').value = s.llm.monthlyLimit;
+  $('#claudePresets').innerHTML = s.llm.presets.CLAUDE.map(m => `<option value="${esc(m)}">`).join('');
+  $('#gptPresets').innerHTML = s.llm.presets.GPT.map(m => `<option value="${esc(m)}">`).join('');
+  $('#usage').innerHTML = `AI 질문 <b>${s.usage.aiCount}</b>${s.llm.monthlyLimit?` / ${s.llm.monthlyLimit}`:''}건 · 전체 대화 ${s.usage.totalCount}건 · 사용자 ${s.usage.userCount}명 · 연결 ${s.usage.linkCount}건<br>피드백 도움 됨 ${s.usage.feedbackUp} / 아쉬워요 ${s.usage.feedbackDown} · 숫자 검증 경고 ${s.usage.numberWarnings}건`;
+  const sb = s.platforms.sellerbricks;
+  document.querySelectorAll('input[name=sbm]').forEach(r => r.checked = r.value === sb.mode);
+  $('#sbBadge').className = 'badge ' + ({MOCK:'b-mock',LIVE:'b-live',OFF:'b-off'}[sb.mode]); $('#sbBadge').textContent = {MOCK:'가짜 데이터',LIVE:'실제 API',OFF:'꺼짐'}[sb.mode];
+  $('#sbUrl').value = sb.baseUrl || ''; $('#sbKeyCur').textContent = sb.signingKey ? `(현재 ${sb.signingKey})` : '(미입력)';
+  $('#skillPath').value = s.kakao.skillPath; $('#skillExample').textContent = s.kakao.exampleUrl;
+  $('#mockSeller').innerHTML = s.mockSellers.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+  $('#tools').innerHTML = `<table><tr><th>이름</th><th>설명</th></tr>${s.tools.map(t => `<tr><td><b>${esc(t.title)}</b><div class="mono">${esc(t.name)}</div></td><td>${esc(t.description)}</td></tr>`).join('')}</table>`;
+}
+
+async function refresh(){ STATE = await api('/admin/api/state'); render(); }
+
+async function saveKey(name){
+  const input = $('#key-'+name+' [data-k=input]'); const msg = $('#key-'+name+' [data-k=msg]');
+  msg.textContent = '저장하고 연결 테스트 중…';
+  try { const r = await api('/admin/api/keys/'+name, { body: { key: input.value } }); input.value=''; await refresh(); msg.textContent = r.test.status==='OK' ? '저장 완료 · 연결 성공' : '저장했지만 연결 실패: ' + r.test.message; }
+  catch(e){ msg.textContent = '실패 ' + e.message; }
+}
+async function testKey(name){
+  const msg = $('#key-'+name+' [data-k=msg]'); msg.textContent = '연결 테스트 중…';
+  try { const r = await api('/admin/api/keys/'+name+'/test', { body: {} }); await refresh(); msg.textContent = (r.test.status==='OK'?'성공 · ':'실패 · ') + r.test.message; } catch(e){ msg.textContent = '실패 ' + e.message; }
+}
+async function delKey(name){ if(!confirm('저장된 키를 삭제할까요? (.env 에 넣은 키는 .env 에서 지워야 합니다)')) return; await api('/admin/api/keys/'+name, { method:'DELETE' }); refresh(); }
+
+async function saveLlm(){
+  const provider = (document.querySelector('input[name=prov]:checked')||{}).value;
+  try { await api('/admin/api/llm', { body: { provider, claudeModel: $('#claudeModel').value, gptModel: $('#gptModel').value, monthlyLimit: Number($('#monthlyLimit').value) } }); await refresh(); $('#llmMsg').textContent = '저장됨'; }
+  catch(e){ $('#llmMsg').textContent = '실패 ' + e.message; }
+  setTimeout(() => $('#llmMsg').textContent = '', 3000);
+}
+
+async function savePlatform(p){
+  const mode = (document.querySelector('input[name=sbm]:checked')||{}).value;
+  try { await api('/admin/api/platform/'+p, { body: { mode, baseUrl: $('#sbUrl').value, signingKey: $('#sbKey').value } }); $('#sbKey').value=''; await refresh(); $('#sbMsg').textContent='저장됨'; }
+  catch(e){ $('#sbMsg').textContent = '실패 ' + e.message; }
+}
+
+async function issueCode(){
+  const r = await api('/admin/api/mock/link-code', { body: { accountId: $('#mockSeller').value } });
+  $('#codeOut').innerHTML = `<div class="codebox">${r.code}</div><div class="muted">${esc(r.accountName)} · ${new Date(r.expiresAt).toLocaleTimeString('ko-KR')} 까지 (5분)</div><button style="margin-top:6px" onclick="sendText('연결 ${r.code}')">채팅으로 "연결 ${r.code}" 보내기</button>`;
+}
+
+const SAMPLES = ['오늘 주문 정리해줘','이번 달 카드 주문 일별로','입금 안 된 주문이랑 송장 안 넣은 주문','어제는?','다음 방송 언제야?','이번 달 정산 얼마야?','정산 언제 들어와요?','단골 고객 누구야?','리뷰 답 안 한 거','이번 달 매출 리포트 만들어줘','주문 목록 엑셀로','3번 상품 방송 대본 써줘','간편 상품 등록해줘 수분앰플 32000원 20개','송장 지연 기준 3일로 해줘','도움말'];
+function addMsg(cls, html){ const d = document.createElement('div'); d.className = cls; d.innerHTML = html; $('#chat').appendChild(d); $('#chat').scrollTop = 1e9; return d; }
+function clearChat(){ $('#chat').innerHTML=''; }
+let PICKED = null;
+function pickImg(){
+  const f = $('#chatImg').files[0]; if(!f) return;
+  if (f.size > 8*1024*1024) { alert('8MB 이하 사진만 올릴 수 있어요'); return; }
+  const r = new FileReader();
+  r.onload = () => { const [head, b64] = String(r.result).split(','); PICKED = { base64: b64, contentType: head.match(/data:(.*);base64/)[1], preview: r.result }; $('#imgPrev').innerHTML = `${esc(f.name)} 첨부됨 <button onclick="PICKED=null;$('#imgPrev').innerHTML='';$('#chatImg').value=''">빼기</button>`; };
+  r.readAsDataURL(f);
+}
+async function send(){ const t = $('#chatInput').value.trim(); if(!t && !PICKED) return; $('#chatInput').value=''; sendText(t); }
+async function sendText(text){
+  const image = PICKED; PICKED = null; $('#imgPrev').innerHTML=''; $('#chatImg').value='';
+  if (image) addMsg('msg me', `<img src="${image.preview}" style="max-width:160px;border-radius:8px;display:block">${esc(text)}`); else addMsg('msg me', esc(text));
+  const wait = addMsg('msg bot', '…');
+  try {
+    const { reply, kakao } = await api('/admin/api/chat', { body: { botUserKey: $('#testUser').value, text, image: image ? { base64: image.base64, contentType: image.contentType } : undefined } });
+    wait.innerHTML = esc(reply.text);
+    if (reply.card && reply.card.items.length) {
+      addMsg('lcard', `<div class="hd">${esc(reply.card.title)}</div>${reply.card.items.map(i => `<div class="it"><b>${esc(i.title)}</b><span>${esc(i.description)}</span></div>`).join('')}${reply.card.button?`<a href="${esc(reply.card.button.url)}" target="_blank" rel="noopener">${esc(reply.card.button.label)}</a>`:''}`);
+    }
+    if (reply.basicCard) {
+      const b = reply.basicCard; const el = addMsg('bcard', `${b.imageUrl?`<img src="${esc(b.imageUrl)}">`:''}<div class="bd"><b>${esc(b.title)}</b><span>${esc(b.description)}</span></div>`);
+      b.buttons.forEach(x => { if (x.action === 'webLink') { const a = document.createElement('a'); a.className='b'; a.href = x.value; a.target='_blank'; a.rel='noopener'; a.textContent = x.label; el.appendChild(a); } else { const bt = document.createElement('button'); bt.textContent = x.label; bt.onclick = () => sendText(x.value); el.appendChild(bt); } });
+    } else if (!(reply.card && reply.card.items.length) && reply.link) {
+      addMsg('lcard', `<div class="hd">결과물이 준비됐어요</div><a href="${esc(reply.link.url)}" target="_blank" rel="noopener">${esc(reply.link.label)}</a>`);
+    }
+    const tools = reply.toolLogs.map(l => l.tool + (l.ok?'':'(실패)')).join(', ');
+    addMsg('meta', `${reply.provider}${reply.model?' · '+esc(reply.model):''} · ${reply.latencyMs}ms${tools?' · 도구: '+esc(tools):''}${reply.error?' · '+esc(reply.error.slice(0,80)):''}${reply.checkWarn?' · 숫자 검증 · '+esc(reply.checkWarn):''}`);
+    if (reply.quickReplies && reply.quickReplies.length) {
+      const q = addMsg('qrs', ''); reply.quickReplies.forEach(t => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => sendText(t); q.appendChild(b); });
+    }
+    $('#lastJson').textContent = JSON.stringify(kakao, null, 2);
+  } catch(e){ wait.textContent = '실패 ' + e.message; }
+}
+
+async function loadUsers(){
+  const rows = await api('/admin/api/users');
+  $('#users').innerHTML = rows.length ? `<table><tr><th>사용자 키</th><th>연결</th><th>마지막 대화</th><th></th></tr>${rows.map(u => `<tr><td class="mono">${esc(u.botUserKey)}</td><td>${u.links.map(l => `${l.platform==='SELLERBRICKS'?'셀러브릭스':'스튜디오'}: ${esc(l.accountName)}`).join('<br>') || '<span class="muted">없음</span>'}</td><td>${new Date(u.lastSeenAt).toLocaleString('ko-KR')}</td><td>${u.links.length?`<button class="danger" onclick="unlink('${u.id}')">연결 해제</button>`:''}</td></tr>`).join('')}</table>` : '<p class="muted">아직 사용자가 없습니다.</p>';
+}
+async function unlink(id){ if(!confirm('이 사용자의 연결을 모두 해제할까요?')) return; await api('/admin/api/users/'+id+'/unlink', { body: {} }); loadUsers(); }
+
+async function loadLogs(){
+  const rows = await api('/admin/api/logs?limit=50');
+  $('#logs').innerHTML = rows.length ? `<table><tr><th>시간</th><th>채널</th><th>질문</th><th>답변</th><th>AI</th><th>도구</th><th>ms</th></tr>${rows.map(r => `<tr><td>${new Date(r.createdAt).toLocaleString('ko-KR')}</td><td>${r.channel==='KAKAO'?'카카오':'테스트'}</td><td>${esc(r.userText)}</td><td style="max-width:320px">${esc(r.replyText.slice(0,160))}${r.replyText.length>160?'…':''}${r.error?`<div style="color:var(--bad)">${esc(r.error)}</div>`:''}${r.checkWarn?`<div style="color:var(--warn)">숫자 검증 · ${esc(r.checkWarn)}</div>`:''}${r.feedback?(r.feedback>0?' · 도움 됨':' · 아쉬워요'):''}</td><td>${esc(r.provider)}${r.model?`<div class="muted">${esc(r.model)}</div>`:''}${r.tokensIn?`<div class="muted">${r.tokensIn}/${r.tokensOut} tok</div>`:''}</td><td>${r.tools.map(t => `${esc(t.tool)}${t.ok?'':' 실패'}`).join('<br>')}</td><td>${r.latencyMs}</td></tr>`).join('')}</table>` : '<p class="muted">아직 대화가 없습니다.</p>';
+}
+
+let FAQ = [];
+async function loadFaq(){
+  FAQ = await api('/admin/api/faq');
+  $('#faqList').innerHTML = `<table><tr><th>분류</th><th>질문</th><th>답변</th><th>상태</th><th></th></tr>${FAQ.map(f => `<tr><td>${esc(f.category)}</td><td><b>${esc(f.question)}</b><div class="muted">${esc(f.source||'')}</div></td><td style="max-width:380px">${esc(f.answer.slice(0,140))}${f.answer.length>140?'…':''}</td><td>${f.isActive?'사용':'<span class="muted">숨김</span>'}</td><td><button onclick="faqEdit('${f.id}')">수정</button>${f.isActive?` <button class="danger" onclick="faqDel('${f.id}')">숨기기</button>`:''}</td></tr>`).join('')}</table>`;
+}
+function faqEdit(id){
+  const f = FAQ.find(x => x.id === id) || { id:'', category:'', question:'', answer:'', keywords:'' };
+  $('#faqId').value = f.id; $('#faqCat').value = f.category; $('#faqQuestion').value = f.question; $('#faqAnswer').value = f.answer; $('#faqKw').value = f.keywords;
+  $('#faqForm').classList.remove('hidden'); $('#faqMsg').textContent='';
+}
+async function faqSave(){
+  try { await api('/admin/api/faq', { body: { id: $('#faqId').value || undefined, category: $('#faqCat').value, question: $('#faqQuestion').value, answer: $('#faqAnswer').value, keywords: $('#faqKw').value, isActive: true } }); $('#faqMsg').textContent='저장됨'; loadFaq(); }
+  catch(e){ $('#faqMsg').textContent='실패 '+e.message; }
+}
+async function faqDel(id){ if(!confirm('이 FAQ를 숨길까요?')) return; await api('/admin/api/faq/'+id, { method:'DELETE' }); loadFaq(); }
+async function faqTest(){ const r = await api('/admin/api/faq/search', { body: { query: $('#faqQ').value } }); $('#faqTestOut').innerHTML = r.length ? r.map(x => `→ <b>${esc(x.question)}</b> (점수 ${x.score})`).join('<br>') : '찾은 FAQ 없음 → 챗봇은 관리자 문의로 안내합니다'; }
+async function loadArtifacts(){
+  const rows = await api('/admin/api/artifacts');
+  $('#artifacts').innerHTML = rows.length ? `<table><tr><th>만든 시각</th><th>종류</th><th>제목</th><th>사용자</th><th>열람</th><th>만료</th></tr>${rows.map(r => `<tr><td>${new Date(r.createdAt).toLocaleString('ko-KR')}</td><td>${esc(r.kind)}</td><td>${new Date(r.expiresAt) > new Date() ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a>` : esc(r.title)}</td><td class="mono">${esc(r.botUserKey)}</td><td>${r.views}회</td><td>${new Date(r.expiresAt).toLocaleTimeString('ko-KR')}</td></tr>`).join('')}</table>` : '<p class="muted">아직 결과물이 없습니다.</p>';
+}
+
+function copy(id){ const el = $('#'+id); el.select(); navigator.clipboard?.writeText(el.value); }
+
+async function boot(){
+  try { await refresh(); } catch { return; }
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#samples').innerHTML = ''; SAMPLES.forEach(t => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => sendText(t); $('#samples').appendChild(b); });
+  if (!$('#chat').children.length) addMsg('msg bot', '테스트 채팅이에요. 오른쪽에서 가짜 셀러 연결 코드를 발급받아 연결한 뒤 질문해 보세요.');
+  loadUsers(); loadLogs(); loadFaq(); loadArtifacts();
+}
+boot();
+</script>
+</body>
+</html>

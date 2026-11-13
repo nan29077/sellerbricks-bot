@@ -28,7 +28,7 @@ if not exist ".env" (
   copy ".env.example" ".env" >nul
   echo Created .env from .env.example  - please change ADMIN_PASSWORD in .env
 )
-if not exist "node_modules" (
+if not exist "node_modules\.bin\tsx.cmd" (
   echo Installing packages ^(npm install^) ...
   call npm install
   if errorlevel 1 (

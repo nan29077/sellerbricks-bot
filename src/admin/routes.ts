@@ -28,6 +28,7 @@ import { periodOf } from '../lib/time.js';
 import { issueMockLinkCode, unlinkAccount } from '../link/link.js';
 import { MOCK_SELLERS } from '../platforms/sellerbricks/mock.js';
 import { ALL_TOOLS, mcpToolList } from '../tools/index.js';
+import { searchFaq } from '../tools/content.js';
 
 const COOKIE = 'sb_admin';
 const SESSION_HOURS = 12;
@@ -65,10 +66,25 @@ async function testKey(name: KeyName) {
 }
 
 export async function adminRoutes(app: FastifyInstance) {
-  const page = () => readFileSync(resolve(ROOT, 'public/admin.html'), 'utf8');
+  const page = (file: string) => {
+    const origin = config.publicBaseUrl.replace(/[&"'<>]/g, (char) => ({ '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' }[char]!));
+    return readFileSync(resolve(ROOT, 'public', file), 'utf8').replaceAll('{{PUBLIC_ORIGIN}}', () => origin);
+  };
 
   app.get('/', async (_req, reply) => reply.redirect('/admin'));
-  app.get('/admin', async (_req, reply) => reply.type('text/html; charset=utf-8').send(page()));
+  app.get('/admin', async (_req, reply) => reply.type('text/html; charset=utf-8').send(page('admin.html')));
+  app.get('/admin/classic', async (_req, reply) => reply.type('text/html; charset=utf-8').send(page('admin-classic.html')));
+  const ASSET_TYPES: Record<string, string> = { css: 'text/css; charset=utf-8', js: 'text/javascript; charset=utf-8', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', ico: 'image/x-icon' };
+  app.get<{ Params: { file: string } }>('/assets/:file', async (req, reply) => {
+    const file = req.params.file;
+    const ext = file.split('.').pop()?.toLowerCase() ?? '';
+    if (!/^[\w.-]+$/.test(file) || file.startsWith('.') || !ASSET_TYPES[ext]) return reply.code(404).send('not found');
+    try {
+      return reply.header('Cache-Control', 'public, max-age=300').type(ASSET_TYPES[ext]).send(readFileSync(resolve(ROOT, 'public', file)));
+    } catch {
+      return reply.code(404).send('not found');
+    }
+  });
 
   app.post<{ Body: { password?: string } }>('/admin/api/login', async (req, reply) => {
     const now = Date.now();
@@ -90,30 +106,36 @@ export async function adminRoutes(app: FastifyInstance) {
     api.addHook('preHandler', requireAdmin);
 
     // 전체 상태 (화면 첫 로딩)
-    api.get('/admin/api/state', async (req) => {
+    api.get('/admin/api/state', async () => {
       const llm = await getLlmSettings();
       const sb = await getPlatformSettings('sellerbricks');
       const st = await getPlatformSettings('studio');
       const monthFrom = periodOf('this_month').from;
+      const [up, down, warns] = await Promise.all([
+        prisma.chatLog.count({ where: { createdAt: { gte: monthFrom }, feedback: 1 } }),
+        prisma.chatLog.count({ where: { createdAt: { gte: monthFrom }, feedback: -1 } }),
+        prisma.chatLog.count({ where: { createdAt: { gte: monthFrom }, checkWarn: { not: null } } }),
+      ]);
       const [aiCount, totalCount, userCount, linkCount] = await Promise.all([
         prisma.chatLog.count({ where: { createdAt: { gte: monthFrom }, provider: { in: ['CLAUDE', 'GPT'] } } }),
         prisma.chatLog.count({ where: { createdAt: { gte: monthFrom } } }),
         prisma.botUser.count(),
         prisma.platformLink.count(),
       ]);
-      const host = req.headers.host || `localhost:${config.port}`;
+      const skillPath = `/kakao/skill/${await getKakaoSkillSecret()}`;
       return {
         warnings: [
-          ...(isDefaultAdminPassword() ? ['관리자 비밀번호가 기본값(admin1234)입니다. .env 의 ADMIN_PASSWORD 를 바꾼 뒤 서버를 다시 시작하세요.'] : []),
+          ...(isDefaultAdminPassword() ? ['관리자 비밀번호가 기본값입니다. .env에서 ADMIN_PASSWORD를 변경한 뒤 서버를 다시 시작하세요.'] : []),
         ],
         keys: { anthropic: await keyInfo('anthropic'), openai: await keyInfo('openai') },
         llm: { ...llm, presets: MODEL_PRESETS },
-        usage: { aiCount, totalCount, userCount, linkCount },
+        usage: { aiCount, totalCount, userCount, linkCount, feedbackUp: up, feedbackDown: down, numberWarnings: warns },
+        publicBaseUrl: config.publicBaseUrl,
         platforms: {
           sellerbricks: { mode: sb.mode, baseUrl: sb.baseUrl, signingKey: maskKey(sb.signingKey) },
           studio: { mode: st.mode, baseUrl: st.baseUrl, signingKey: maskKey(st.signingKey) },
         },
-        kakao: { skillPath: `/kakao/skill/${await getKakaoSkillSecret()}`, exampleUrl: `${req.protocol}://${host}/kakao/skill/${await getKakaoSkillSecret()}` },
+        kakao: { skillPath, exampleUrl: config.publicBaseUrl + skillPath },
         mockSellers: MOCK_SELLERS.map((s) => ({ id: s.id, name: s.name })),
         tools: mcpToolList(ALL_TOOLS),
       };
@@ -183,10 +205,12 @@ export async function adminRoutes(app: FastifyInstance) {
     });
 
     // 테스트 채팅
-    api.post<{ Body: { botUserKey?: string; text?: string } }>('/admin/api/chat', async (req) => {
+    api.post<{ Body: { botUserKey?: string; text?: string; image?: { base64: string; contentType: string } } }>('/admin/api/chat', { bodyLimit: 12 * 1024 * 1024 }, async (req) => {
       const botUserKey = String(req.body?.botUserKey || 'admin-test-user').slice(0, 64);
-      const r = await handleMessage({ botUserKey, text: String(req.body?.text || ''), channel: 'TEST' });
-      return { reply: r, kakao: buildResponse(r.text, r.card, r.quickReplies) };
+      const img = req.body?.image;
+      const images = img?.base64 ? [{ base64: img.base64, contentType: img.contentType || 'image/jpeg' }] : [];
+      const r = await handleMessage({ botUserKey, text: String(req.body?.text || ''), images, channel: 'TEST' });
+      return { reply: r, kakao: buildResponse(r) };
     });
 
     // 로그
@@ -203,5 +227,25 @@ export async function adminRoutes(app: FastifyInstance) {
     });
 
     api.post<{ Params: { id: string } }>('/admin/api/users/:id/unlink', async (req) => ({ message: await unlinkAccount(req.params.id) }));
+
+    // FAQ 관리
+    api.get('/admin/api/faq', async () => prisma.faqDoc.findMany({ orderBy: [{ category: 'asc' }, { createdAt: 'asc' }] }));
+    api.post<{ Body: { id?: string; category?: string; question?: string; answer?: string; keywords?: string; isActive?: boolean } }>('/admin/api/faq', async (req, reply) => {
+      const b = req.body || {};
+      const data = { category: String(b.category || '기타').trim().slice(0, 30), question: String(b.question || '').trim().slice(0, 200), answer: String(b.answer || '').trim().slice(0, 3000), keywords: String(b.keywords || '').trim().slice(0, 300), isActive: b.isActive !== false };
+      if (!data.question || !data.answer) return reply.code(400).send({ error: '질문과 답변을 입력하세요.' });
+      return b.id ? prisma.faqDoc.update({ where: { id: b.id }, data }) : prisma.faqDoc.create({ data: { ...data, source: '관리자 입력' } });
+    });
+    api.delete<{ Params: { id: string } }>('/admin/api/faq/:id', async (req) => {
+      await prisma.faqDoc.update({ where: { id: req.params.id }, data: { isActive: false } });
+      return { ok: true };
+    });
+    api.post<{ Body: { query?: string } }>('/admin/api/faq/search', async (req) => searchFaq(String(req.body?.query || ''), 5));
+
+    // 결과물 열람 기록
+    api.get('/admin/api/artifacts', async () => {
+      const rows = await prisma.artifact.findMany({ orderBy: { createdAt: 'desc' }, take: 50, include: { botUser: { select: { botUserKey: true } } } });
+      return rows.map((r) => ({ id: r.id, kind: r.kind, title: r.title, views: r.views, lastViewAt: r.lastViewAt, expiresAt: r.expiresAt, createdAt: r.createdAt, url: `${config.publicBaseUrl}/r/${r.token}`, botUserKey: r.botUser.botUserKey.slice(0, 12) }));
+    });
   });
 }

@@ -1,353 +1,256 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>sellerbricks-bot 관리자</title>
-<style>
-  :root { --bg:#f5f6f8; --card:#fff; --line:#e3e6ea; --text:#1d2129; --sub:#6b7280; --brand:#f5a700; --brand-d:#c98700; --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --kakao:#fee500; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; background:var(--bg); color:var(--text); font-size:14px; }
-  header { background:#1d2129; color:#fff; padding:12px 20px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:5; }
-  header h1 { font-size:16px; margin:0; font-weight:700; }
-  header .sp { flex:1; }
-  main { max-width:1100px; margin:0 auto; padding:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
-  .card h2 { font-size:16px; margin:0 0 4px; }
-  .card .desc { color:var(--sub); font-size:13px; margin:0 0 14px; }
-  .keycard { border:2px solid var(--brand); box-shadow:0 2px 0 rgba(245,167,0,.2); }
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  @media (max-width:760px){ .grid2 { grid-template-columns:1fr; } }
-  .box { border:1px solid var(--line); border-radius:10px; padding:14px; }
-  .box h3 { margin:0 0 8px; font-size:15px; display:flex; align-items:center; gap:8px; }
-  label { display:block; font-size:12px; color:var(--sub); margin:10px 0 4px; }
-  input[type=text], input[type=password], input[type=number], select { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff; }
-  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .row > input, .row > select { flex:1; min-width:140px; }
-  button { padding:9px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; font-size:13px; white-space:nowrap; }
-  button.primary { background:var(--brand); border-color:var(--brand); color:#fff; font-weight:600; }
-  button.primary:hover { background:var(--brand-d); }
-  button.danger { color:var(--bad); }
-  button:disabled { opacity:.5; cursor:default; }
-  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:600; }
-  .b-none { background:#fee2e2; color:var(--bad); } .b-unt { background:#fef3c7; color:var(--warn); } .b-ok { background:#dcfce7; color:var(--ok); } .b-fail { background:#fee2e2; color:var(--bad); }
-  .b-mock { background:#fef3c7; color:#92400e; } .b-live { background:#dcfce7; color:var(--ok); } .b-off { background:#eceff3; color:var(--sub); }
-  .muted { color:var(--sub); font-size:12px; }
-  .mono { font-family: ui-monospace, Consolas, monospace; font-size:12px; word-break:break-all; }
-  .warn { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:10px 14px; border-radius:10px; margin-bottom:12px; }
-  .modebar { padding:12px 16px; border-radius:10px; margin-bottom:16px; font-weight:600; }
-  .modebar.mock { background:#fef3c7; color:#92400e; border:1px solid #fde68a; }
-  .modebar.live { background:#dcfce7; color:#166534; border:1px solid #bbf7d0; }
-  .radios { display:flex; gap:8px; flex-wrap:wrap; }
-  .radios label { margin:0; display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:8px; padding:8px 12px; color:var(--text); font-size:14px; cursor:pointer; }
-  .radios input { margin:0; }
-  /* 채팅 */
-  .chat { background:#b2c7da; border-radius:12px; height:460px; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:8px; }
-  .chat > * { flex-shrink:0; }
-  .msg { max-width:82%; padding:9px 12px; border-radius:12px; white-space:pre-wrap; line-height:1.45; font-size:13.5px; }
-  .msg.me { align-self:flex-end; background:var(--kakao); }
-  .msg.bot { align-self:flex-start; background:#fff; }
-  .meta { align-self:flex-start; font-size:11px; color:#334155; margin-top:-4px; }
-  .lcard { align-self:flex-start; background:#fff; border-radius:12px; width:82%; max-width:340px; overflow:hidden; }
-  .lcard .hd { padding:10px 12px; font-weight:700; border-bottom:1px solid var(--line); }
-  .lcard .it { padding:8px 12px; border-bottom:1px solid #f1f3f5; }
-  .lcard .it b { display:block; font-size:13px; font-weight:600; }
-  .lcard .it span { font-size:12px; color:var(--sub); }
-  .lcard a { display:block; text-align:center; padding:9px; color:var(--text); text-decoration:none; font-size:13px; background:#fafafa; }
-  .qrs { display:flex; gap:6px; flex-wrap:wrap; align-self:flex-start; }
-  .qrs button { border-radius:999px; padding:6px 12px; font-size:12px; background:#fff; }
-  table { width:100%; border-collapse:collapse; font-size:12.5px; }
-  th, td { text-align:left; padding:7px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--sub); font-weight:600; }
-  .codebox { font-size:26px; font-weight:800; letter-spacing:4px; font-family:ui-monospace, Consolas, monospace; }
-  #login { max-width:360px; margin:12vh auto; }
-  .hidden { display:none !important; }
-  details summary { cursor:pointer; color:var(--sub); font-size:12px; }
-  pre { background:#0f172a; color:#e2e8f0; padding:10px; border-radius:8px; overflow:auto; font-size:11.5px; max-height:260px; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>셀러브릭스 봇 관리자</title>
+  <meta name="description" content="주문, 상품, 정산을 대화로 확인하는 셀러브릭스 챗봇">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="ko_KR">
+  <meta property="og:site_name" content="셀러브릭스">
+  <meta property="og:title" content="셀러브릭스 봇 | 셀러의 하루, 대화로 정리하다">
+  <meta property="og:description" content="주문, 상품, 정산을 대화로 확인하는 셀러브릭스 챗봇">
+  <meta property="og:url" content="{{PUBLIC_ORIGIN}}/admin">
+  <meta property="og:image" content="{{PUBLIC_ORIGIN}}/assets/share-card.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="628">
+  <meta property="og:image:alt" content="셀러의 하루, 대화로 정리하다. 말풍선과 배송 상자를 담은 셀러브릭스 공유 이미지">
+  <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/admin.css">
+  <script defer src="/assets/admin.js"></script>
 </head>
 <body>
+  <main id="login" class="login-page hidden">
+    <div class="login-wrap">
+      <a class="brand login-brand" href="/admin">
+        <img src="/assets/logo.svg" alt="" width="38" height="38"><span>Sellerbricks</span>
+      </a>
+      <section class="login-card" aria-labelledby="loginTitle">
+        <h1 id="loginTitle">관리자 로그인</h1>
+        <p>셀러브릭스 챗봇을 관리하려면 로그인하세요.</p>
+        <form id="loginForm">
+          <label for="pw">비밀번호</label>
+          <div class="password-field">
+            <input type="password" id="pw" placeholder="관리자 비밀번호 입력" autocomplete="current-password" required>
+            <button class="icon-button" id="showPassword" type="button" aria-label="비밀번호 표시" data-icon="eye"></button>
+          </div>
+          <p id="loginErr" class="form-error" role="alert"></p>
+          <button id="loginButton" class="primary login-button" type="submit">로그인</button>
+        </form>
+      </section>
+    </div>
+  </main>
 
-<div id="login" class="card hidden">
-  <h2>sellerbricks-bot 관리자</h2>
-  <p class="desc">.env 의 ADMIN_PASSWORD 로 로그인하세요.</p>
-  <input type="password" id="pw" placeholder="관리자 비밀번호" onkeydown="if(event.key==='Enter')login()" />
-  <div class="row" style="margin-top:10px"><button class="primary" onclick="login()">로그인</button><span id="loginErr" class="muted" style="color:var(--bad)"></span></div>
-</div>
-
-<div id="app" class="hidden">
-<header>
-  <h1>🤖 sellerbricks-bot 관리자</h1>
-  <span id="hdrMode" class="badge"></span>
-  <span class="sp"></span>
-  <button onclick="logout()" style="background:transparent;color:#fff;border-color:#475569">로그아웃</button>
-</header>
-<main>
-  <div id="warns"></div>
-  <div id="modebar" class="modebar"></div>
-
-  <!-- 1. API 키 (가장 먼저) -->
-  <section class="card keycard">
-    <h2>🔑 API 키 설정</h2>
-    <p class="desc">Claude 또는 GPT 키를 붙여넣고 [저장]을 누르면 바로 연결 테스트까지 합니다. 키가 없으면 <b>가짜 응답 모드</b>로 동작합니다. 키는 암호화되어 이 서버에만 저장됩니다.</p>
-    <div class="grid2">
-      <div class="box" id="key-anthropic">
-        <h3>Claude (Anthropic) <span class="badge" data-k="badge"></span></h3>
-        <div class="muted" data-k="cur"></div>
-        <label>새 키 입력 (sk-ant-…)</label>
-        <div class="row"><input type="password" data-k="input" placeholder="sk-ant-api03-..." autocomplete="off" /><button class="primary" onclick="saveKey('anthropic')">저장</button></div>
-        <div class="row" style="margin-top:8px"><button onclick="testKey('anthropic')">연결 테스트</button><button class="danger" onclick="delKey('anthropic')">삭제</button></div>
-        <div class="muted" data-k="msg" style="margin-top:6px"></div>
-        <div class="muted" style="margin-top:6px">발급: console.anthropic.com → API Keys</div>
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <a class="brand" href="#overview">
+        <img src="/assets/logo.svg" alt="" width="36" height="36">
+        <span>Sellerbricks<small>챗봇 관리자</small></span>
+      </a>
+      <nav aria-label="관리자 메뉴">
+        <a href="#overview"><span data-icon="grid"></span>대시보드</a>
+        <a href="#ai"><span data-icon="sliders"></span>AI 설정</a>
+        <a href="#connections"><span data-icon="link"></span>서비스 연결</a>
+        <a href="#activity"><span data-icon="list"></span>사용자 · 로그</a>
+        <a href="#test-chat"><span data-icon="chat"></span>테스트 채팅</a>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout" type="button" data-action="logout"><span data-icon="logout"></span>로그아웃</button>
       </div>
-      <div class="box" id="key-openai">
-        <h3>GPT (OpenAI) <span class="badge" data-k="badge"></span></h3>
-        <div class="muted" data-k="cur"></div>
-        <label>새 키 입력 (sk-…)</label>
-        <div class="row"><input type="password" data-k="input" placeholder="sk-proj-..." autocomplete="off" /><button class="primary" onclick="saveKey('openai')">저장</button></div>
-        <div class="row" style="margin-top:8px"><button onclick="testKey('openai')">연결 테스트</button><button class="danger" onclick="delKey('openai')">삭제</button></div>
-        <div class="muted" data-k="msg" style="margin-top:6px"></div>
-        <div class="muted" style="margin-top:6px">발급: platform.openai.com → API keys</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 2. AI 선택 -->
-  <section class="card">
-    <h2>🧠 사용할 AI 선택</h2>
-    <p class="desc">고른 AI 의 키가 없으면 자동으로 가짜 응답 모드로 동작합니다. AI 호출이 실패해도 셀러에게는 가짜 응답 모드로 대신 답하고, 오류는 아래 로그에 남습니다.</p>
-    <div class="radios" id="provRadios">
-      <label><input type="radio" name="prov" value="CLAUDE" /> Claude</label>
-      <label><input type="radio" name="prov" value="GPT" /> GPT</label>
-      <label><input type="radio" name="prov" value="MOCK" /> 가짜 응답 모드 (AI 안 씀)</label>
-    </div>
-    <div class="grid2" style="margin-top:6px">
-      <div><label>Claude 모델</label><input type="text" id="claudeModel" list="claudePresets" /><datalist id="claudePresets"></datalist></div>
-      <div><label>GPT 모델</label><input type="text" id="gptModel" list="gptPresets" /><datalist id="gptPresets"></datalist></div>
-    </div>
-    <div class="grid2">
-      <div><label>월 AI 질문 상한 (0 = 제한 없음, 넘으면 가짜 응답 모드로 안내)</label><input type="number" id="monthlyLimit" min="0" /></div>
-      <div><label>이번 달 사용량</label><div id="usage" style="padding:9px 0"></div></div>
-    </div>
-    <div class="row" style="margin-top:12px"><button class="primary" onclick="saveLlm()">AI 설정 저장</button><span id="llmMsg" class="muted"></span></div>
-  </section>
-
-  <!-- 3. 테스트 채팅 -->
-  <section class="card">
-    <h2>💬 테스트 채팅</h2>
-    <p class="desc">카카오 연결 없이 카톡과 같은 답변(말풍선·리스트 카드·바로가기 버튼)을 확인합니다. 먼저 아래에서 <b>가짜 셀러 연결 코드</b>를 받아 "연결 123456" 을 보내세요.</p>
-    <div class="grid2">
-      <div>
-        <div class="chat" id="chat"></div>
-        <div class="row" style="margin-top:8px">
-          <input type="text" id="chatInput" placeholder="예) 오늘 주문 정리해줘" onkeydown="if(event.key==='Enter'&&!event.isComposing)send()" />
-          <button class="primary" onclick="send()">보내기</button>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <span class="topbar-title">챗봇 관리</span>
+        <div class="actions">
+          <span id="hdrMode" class="badge"></span>
+          <button class="icon-button mobile-logout" type="button" data-action="logout" aria-label="로그아웃" data-icon="logout"></button>
         </div>
-      </div>
-      <div>
-        <div class="box">
-          <h3>가짜 셀러 연결 코드</h3>
-          <div class="row"><select id="mockSeller"></select><button onclick="issueCode()">코드 발급</button></div>
-          <div id="codeOut" style="margin-top:10px"></div>
-        </div>
-        <div class="box" style="margin-top:12px">
-          <h3>테스트 사용자</h3>
-          <label>botUserKey (카카오 사용자 키 대신 쓰는 값)</label>
-          <div class="row"><input type="text" id="testUser" value="admin-test-user" /><button onclick="clearChat()">화면 지우기</button></div>
-          <div class="muted" style="margin-top:6px">값을 바꾸면 다른 셀러처럼 따로 연결해 볼 수 있어요.</div>
-        </div>
-        <div class="box" style="margin-top:12px">
-          <h3>빠른 질문</h3>
-          <div class="qrs" id="samples"></div>
-        </div>
-        <details style="margin-top:12px"><summary>마지막 카카오 응답 JSON 보기</summary><pre id="lastJson"></pre></details>
-      </div>
+      </header>
+      <main class="content">
+        <section id="overview" aria-labelledby="overviewTitle">
+          <div class="page-heading">
+            <div><h1 id="overviewTitle">대시보드</h1><p>챗봇 운영 현황을 확인하고 응답을 테스트하세요.</p></div>
+            <a class="button primary" href="#test-chat"><span data-icon="chat"></span>테스트 채팅 열기</a>
+          </div>
+          <div class="stats">
+            <div class="stat"><span class="stat-icon" data-icon="chat"></span><div>이번 달 대화<strong id="totalCount">–</strong></div></div>
+            <div class="stat"><span class="stat-icon" data-icon="spark"></span><div>이번 달 AI 질문<strong id="aiCount">–</strong></div></div>
+            <div class="stat"><span class="stat-icon" data-icon="users"></span><div>챗봇 사용자<strong id="userCount">–</strong></div></div>
+            <div class="stat"><span class="stat-icon" data-icon="link"></span><div>연결된 계정<strong id="linkCount">–</strong></div></div>
+          </div>
+          <p class="usage-detail muted" id="usageDetail"></p>
+          <div id="warns"></div>
+        </section>
+
+        <section id="ai" class="section" aria-labelledby="aiTitle">
+          <h2 id="aiTitle">AI 설정</h2>
+          <div class="section-grid">
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="key"></span><h3>API 키 설정</h3></div>
+              <p class="description">키는 암호화해 저장하며, 저장 직후 연결을 확인합니다.</p>
+              <div class="provider" id="key-anthropic">
+                <div class="split"><h4>Claude <span>Anthropic</span></h4><span class="badge" data-k="badge"></span></div>
+                <p class="muted" data-k="cur"></p>
+                <label class="visually-hidden" for="anthropicKey">Anthropic API 키</label>
+                <form class="input-row key-form" data-provider="anthropic">
+                  <input type="password" id="anthropicKey" data-k="input" placeholder="sk-ant-…" autocomplete="off" required>
+                  <button class="primary" type="submit">저장</button>
+                </form>
+                <div class="actions key-actions"><button type="button" data-key-action="test">연결 테스트</button><button class="quiet danger" type="button" data-key-action="delete">삭제</button></div>
+                <p class="muted feedback" data-k="msg" aria-live="polite"></p>
+              </div>
+              <div class="provider" id="key-openai">
+                <div class="split"><h4>GPT <span>OpenAI</span></h4><span class="badge" data-k="badge"></span></div>
+                <p class="muted" data-k="cur"></p>
+                <label class="visually-hidden" for="openaiKey">OpenAI API 키</label>
+                <form class="input-row key-form" data-provider="openai">
+                  <input type="password" id="openaiKey" data-k="input" placeholder="sk-proj-…" autocomplete="off" required>
+                  <button class="primary" type="submit">저장</button>
+                </form>
+                <div class="actions key-actions"><button type="button" data-key-action="test">연결 테스트</button><button class="quiet danger" type="button" data-key-action="delete">삭제</button></div>
+                <p class="muted feedback" data-k="msg" aria-live="polite"></p>
+              </div>
+            </section>
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="sliders"></span><h3>사용할 AI 선택</h3></div>
+              <p class="description">키가 없거나 AI 호출에 실패하면 기본 응답을 사용합니다.</p>
+              <form id="llmForm">
+                <fieldset class="radio-group">
+                  <legend class="visually-hidden">응답 방식</legend>
+                  <label><input type="radio" name="prov" value="CLAUDE">Claude</label>
+                  <label><input type="radio" name="prov" value="GPT">GPT</label>
+                  <label><input type="radio" name="prov" value="MOCK">기본 응답</label>
+                </fieldset>
+                <div class="field"><label for="claudeModel">Claude 모델</label><input type="text" id="claudeModel" list="claudePresets"><datalist id="claudePresets"></datalist></div>
+                <div class="field"><label for="gptModel">GPT 모델</label><input type="text" id="gptModel" list="gptPresets"><datalist id="gptPresets"></datalist></div>
+                <div class="field"><label for="monthlyLimit">월 AI 질문 한도 <span class="muted">(0이면 제한 없음)</span></label><input type="number" id="monthlyLimit" min="0"></div>
+                <div class="actions form-actions"><button class="primary" type="submit">AI 설정 저장</button><span id="llmMsg" class="muted" role="status"></span></div>
+              </form>
+            </section>
+          </div>
+        </section>
+
+        <section id="connections" class="section" aria-labelledby="connectionsTitle">
+          <h2 id="connectionsTitle">서비스 연결</h2>
+          <div class="section-grid">
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="link"></span><h3>플랫폼 연결</h3></div>
+              <form id="platformForm">
+                <div class="split"><h4>셀러브릭스</h4><span class="badge" id="sbBadge"></span></div>
+                <fieldset class="radio-group">
+                  <legend class="visually-hidden">셀러브릭스 연동 모드</legend>
+                  <label><input type="radio" name="sbm" value="MOCK">샘플 데이터</label>
+                  <label><input type="radio" name="sbm" value="LIVE">실제 API</label>
+                  <label><input type="radio" name="sbm" value="OFF">꺼짐</label>
+                </fieldset>
+                <div class="field"><label for="sbUrl">API 주소</label><input type="url" id="sbUrl" placeholder="https://sellerbricks.co.kr"></div>
+                <div class="field"><label for="sbKey">서명 키 <span id="sbKeyCur" class="muted"></span></label><input type="password" id="sbKey" placeholder="변경할 때만 입력" autocomplete="off"></div>
+                <div class="actions form-actions"><button class="primary" type="submit">플랫폼 설정 저장</button><span id="sbMsg" class="muted" role="status"></span></div>
+              </form>
+              <div class="split studio"><h4>셀러브릭스 스튜디오</h4><span class="badge b-off">연동 준비 중</span></div>
+            </section>
+            <section class="card">
+              <div class="card-title"><span class="section-icon" data-icon="chat"></span><h3>카카오 스킬 주소</h3></div>
+              <p class="description">카카오 챗봇 관리자센터의 스킬 URL에 이 주소를 등록하세요. 비밀 경로가 포함되어 있습니다.</p>
+              <div class="input-row"><input type="text" id="skillPath" aria-label="카카오 스킬 URL" readonly class="mono"><button type="button" id="copySkill"><span data-icon="copy"></span>복사</button></div>
+              <p id="skillMsg" class="muted feedback" role="status"></p>
+              <div class="share-preview">
+                <img src="/assets/share-card.jpg" width="1200" height="628" loading="lazy" alt="셀러의 하루, 대화로 정리하다. 셀러브릭스 공유 카드">
+                <div class="split"><span>카카오톡 링크 미리보기</span><button type="button" id="shareLink"><span data-icon="share"></span>공유 링크</button></div>
+              </div>
+              <p id="shareMsg" class="muted feedback" role="status"></p>
+            </section>
+          </div>
+        </section>
+
+        <section id="activity" class="section" aria-labelledby="activityTitle">
+          <h2 id="activityTitle">사용자 · 로그</h2>
+          <div class="card disclosures">
+            <details id="usersPanel"><summary><span data-icon="users"></span>챗봇 사용자와 연결 상태<span class="chevron" data-icon="chevron"></span></summary>
+              <div class="disclosure-body"><button type="button" id="refreshUsers"><span data-icon="refresh"></span>새로고침</button><div id="users" class="table-wrap"></div></div>
+            </details>
+            <details id="logsPanel"><summary><span data-icon="list"></span>최근 대화 로그<span class="chevron" data-icon="chevron"></span></summary>
+              <div class="disclosure-body"><button type="button" id="refreshLogs"><span data-icon="refresh"></span>새로고침</button><div id="logs" class="table-wrap"></div></div>
+            </details>
+            <details id="faqPanel"><summary><span data-icon="book"></span>FAQ 관리<span class="chevron" data-icon="chevron"></span></summary>
+              <div class="disclosure-body">
+                <div class="actions">
+                  <form id="faqSearch" class="input-row"><input type="search" id="faqQuery" placeholder="FAQ 검색 시험" aria-label="FAQ 검색어" required><button type="submit">검색</button></form>
+                  <button id="newFaq" type="button" class="primary"><span data-icon="plus"></span>새 FAQ</button>
+                </div>
+                <p id="faqMsg" class="muted feedback" role="status"></p>
+                <div id="faqList" class="table-wrap"></div>
+              </div>
+            </details>
+            <details id="artifactsPanel"><summary><span data-icon="file"></span>결과물 열람 기록<span class="chevron" data-icon="chevron"></span></summary>
+              <div class="disclosure-body"><button type="button" id="refreshArtifacts"><span data-icon="refresh"></span>새로고침</button><div id="artifacts" class="table-wrap"></div></div>
+            </details>
+            <details><summary><span data-icon="box"></span>챗봇 도구 목록<span class="chevron" data-icon="chevron"></span></summary>
+              <div id="tools" class="disclosure-body table-wrap"></div>
+            </details>
+          </div>
+        </section>
+
+        <section id="test-chat" class="section" aria-labelledby="testTitle">
+          <div class="section-heading"><h2 id="testTitle">테스트 채팅</h2><p>카카오톡에서 보이는 답변과 버튼을 미리 확인하세요.</p></div>
+          <div class="test-grid">
+            <section class="talk" aria-labelledby="talkTitle">
+              <header class="talk-header">
+                <img src="/assets/logo.svg" width="38" height="38" alt="">
+                <div><h3 id="talkTitle">셀러브릭스 챗봇</h3><span>채널 채팅</span></div>
+                <button class="icon-button" id="clearChat" type="button" aria-label="대화 화면 지우기" title="대화 화면 지우기" data-icon="trash"></button>
+              </header>
+              <div class="chat" id="chat" role="log" aria-label="테스트 대화"></div>
+              <div id="quickReplies" class="quick-replies" aria-label="챗봇 바로가기" hidden></div>
+              <div class="attachment" id="attachment" hidden>
+                <span data-icon="image"></span><span id="attachmentName"></span>
+                <button class="icon-button" id="removeAttachment" type="button" aria-label="첨부 사진 제거" data-icon="close"></button>
+              </div>
+              <form class="composer" id="chatForm">
+                <button class="icon-button attach-button" id="attachButton" type="button" aria-label="사진 첨부" title="사진 첨부" data-icon="plus"></button>
+                <input id="chatImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+                <input type="text" id="chatInput" placeholder="메시지를 입력하세요" aria-label="메시지 입력" autocomplete="off" maxlength="500">
+                <button class="send" id="sendButton" type="submit">전송</button>
+              </form>
+            </section>
+            <div class="test-controls">
+              <section class="card">
+                <div class="card-title"><span class="section-icon" data-icon="sliders"></span><h3>테스트 설정</h3></div>
+                <div class="test-modes"><span id="testAiMode" class="badge"></span><span id="testDataMode" class="badge"></span></div>
+                <div class="field"><label for="testUser">테스트 사용자 키</label><input type="text" id="testUser" maxlength="64" value="admin-test-user" autocomplete="off"></div>
+                <div id="mockConnection">
+                  <label for="mockSeller">샘플 셀러 연결</label>
+                  <div class="input-row"><select id="mockSeller"></select><button type="button" id="issueCode">코드 발급</button></div>
+                  <div id="codeOut" aria-live="polite"></div>
+                </div>
+                <p id="liveConnection" class="muted" hidden></p>
+              </section>
+              <section class="card">
+                <div class="card-title"><span class="section-icon" data-icon="chat"></span><h3>빠른 질문</h3></div>
+                <div class="samples" id="samples"></div>
+              </section>
+              <details class="card response-details"><summary>마지막 응답<span class="chevron" data-icon="chevron"></span></summary>
+                <p id="lastMeta" class="muted">메시지를 보내면 응답 정보가 표시됩니다.</p>
+                <pre id="lastJson" hidden></pre>
+              </details>
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
-  </section>
-
-  <!-- 4. 플랫폼 연결 -->
-  <section class="card">
-    <h2>🔌 플랫폼 연결</h2>
-    <p class="desc">지금은 <b>가짜 데이터</b>로 동작합니다. 셀러브릭스 내부 봇 API(docs/04_플랫폼API명세.md)가 준비되면 주소와 서명 키를 넣고 <b>실제</b>로 바꾸세요.</p>
-    <div class="grid2">
-      <div class="box">
-        <h3>셀러브릭스 <span class="badge" id="sbBadge"></span></h3>
-        <div class="radios" id="sbMode">
-          <label><input type="radio" name="sbm" value="MOCK" /> 가짜 데이터</label>
-          <label><input type="radio" name="sbm" value="LIVE" /> 실제 API</label>
-          <label><input type="radio" name="sbm" value="OFF" /> 끄기</label>
-        </div>
-        <label>API 주소 (예: https://sellerbricks.co.kr)</label><input type="text" id="sbUrl" />
-        <label>서명 키 <span id="sbKeyCur" class="muted"></span></label><input type="password" id="sbKey" placeholder="바꿀 때만 입력" autocomplete="off" />
-        <div class="row" style="margin-top:10px"><button class="primary" onclick="savePlatform('sellerbricks')">저장</button><span id="sbMsg" class="muted"></span></div>
-      </div>
-      <div class="box">
-        <h3>셀러브릭스 스튜디오 <span class="badge b-off">배포 후 오픈</span></h3>
-        <p class="muted">스튜디오 실서버 배포(2026-11-16 주간 예정) 후 내부 봇 API 를 만들고 여기서 켭니다.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- 5. 카카오 -->
-  <section class="card">
-    <h2>📮 카카오 스킬 주소</h2>
-    <p class="desc">오픈빌더 → 스킬 → URL 에 <b>https://도메인</b> + 아래 경로를 넣습니다. 경로의 비밀값이 외부 호출을 막으니 공유하지 마세요.</p>
-    <div class="row"><input type="text" id="skillPath" readonly class="mono" /><button onclick="copy('skillPath')">복사</button></div>
-    <div class="muted" style="margin-top:6px">로컬 예시: <span id="skillExample" class="mono"></span></div>
-  </section>
-
-  <!-- 6. 사용자 -->
-  <section class="card">
-    <h2>👥 챗봇 사용자 · 연결 상태</h2>
-    <div class="row" style="margin-bottom:8px"><button onclick="loadUsers()">새로고침</button></div>
-    <div id="users"></div>
-  </section>
-
-  <!-- 7. 로그 -->
-  <section class="card">
-    <h2>📜 최근 대화 로그</h2>
-    <p class="desc">전화번호 등 개인정보는 가려서 저장됩니다.</p>
-    <div class="row" style="margin-bottom:8px"><button onclick="loadLogs()">새로고침</button></div>
-    <div id="logs" style="overflow-x:auto"></div>
-  </section>
-
-  <!-- 8. 도구 -->
-  <section class="card">
-    <h2>🧰 도구 목록 (MCP 형식)</h2>
-    <p class="desc">AI 가 호출하는 도구입니다. 같은 형식으로 나중에 카카오 PlayMCP 에 등록할 수 있습니다.</p>
-    <div id="tools"></div>
-  </section>
-</main>
-</div>
-
-<script>
-const $ = (s, el=document) => el.querySelector(s);
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let STATE = null;
-
-async function api(path, opts={}) {
-  const res = await fetch(path, { method: opts.method || (opts.body ? 'POST' : 'GET'), headers: opts.body ? {'Content-Type':'application/json'} : {}, body: opts.body ? JSON.stringify(opts.body) : undefined });
-  if (res.status === 401 && !path.endsWith('/login')) { showLogin(); throw new Error('로그인 필요'); }
-  const j = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(j.error || ('오류 ' + res.status));
-  return j;
-}
-
-function showLogin(){ $('#login').classList.remove('hidden'); $('#app').classList.add('hidden'); $('#pw').focus(); }
-async function login(){
-  $('#loginErr').textContent = '';
-  try { await api('/admin/api/login', { body: { password: $('#pw').value } }); $('#pw').value=''; boot(); }
-  catch(e){ $('#loginErr').textContent = e.message; }
-}
-async function logout(){ await api('/admin/api/logout', { body: {} }); showLogin(); }
-
-const KEY_BADGE = { NONE:['b-none','미입력'], UNTESTED:['b-unt','확인 전'], OK:['b-ok','연결 확인됨'], FAIL:['b-fail','연결 실패'] };
-function renderKey(name, info){
-  const box = $('#key-'+name);
-  const [cls, txt] = KEY_BADGE[info.status] || KEY_BADGE.NONE;
-  const b = $('[data-k=badge]', box); b.className = 'badge ' + cls; b.textContent = (info.status==='NONE'?'🔴 ':info.status==='OK'?'🟢 ':'🟡 ') + txt;
-  $('[data-k=cur]', box).innerHTML = info.masked ? `현재 키: <span class="mono">${esc(info.masked)}</span> ${info.source==='ENV'?'<span class="badge b-off">.env 에서 읽음</span>':''}` : '저장된 키 없음 → 가짜 응답 모드';
-  $('[data-k=msg]', box).textContent = info.message ? `${info.message}${info.testedAt ? ' · ' + new Date(info.testedAt).toLocaleString('ko-KR') : ''}` : '';
-}
-
-function render(){
-  const s = STATE;
-  $('#warns').innerHTML = s.warnings.map(w => `<div class="warn">⚠️ ${esc(w)}</div>`).join('');
-  const mock = s.llm.effective === 'MOCK';
-  const name = { CLAUDE:'Claude', GPT:'GPT', MOCK:'가짜 응답' };
-  $('#modebar').className = 'modebar ' + (mock ? 'mock' : 'live');
-  $('#modebar').textContent = mock ? `🟡 가짜 응답 모드로 동작 중 — ${s.llm.reason}` : `🟢 ${name[s.llm.effective]} 사용 중 (${s.llm.effective==='CLAUDE'?s.llm.claudeModel:s.llm.gptModel})`;
-  $('#hdrMode').className = 'badge ' + (mock ? 'b-mock' : 'b-live'); $('#hdrMode').textContent = mock ? '가짜 응답 모드' : name[s.llm.effective];
-  renderKey('anthropic', s.keys.anthropic); renderKey('openai', s.keys.openai);
-  document.querySelectorAll('input[name=prov]').forEach(r => r.checked = r.value === s.llm.selected);
-  $('#claudeModel').value = s.llm.claudeModel; $('#gptModel').value = s.llm.gptModel; $('#monthlyLimit').value = s.llm.monthlyLimit;
-  $('#claudePresets').innerHTML = s.llm.presets.CLAUDE.map(m => `<option value="${esc(m)}">`).join('');
-  $('#gptPresets').innerHTML = s.llm.presets.GPT.map(m => `<option value="${esc(m)}">`).join('');
-  $('#usage').innerHTML = `AI 질문 <b>${s.usage.aiCount}</b>${s.llm.monthlyLimit?` / ${s.llm.monthlyLimit}`:''}건 · 전체 대화 ${s.usage.totalCount}건 · 사용자 ${s.usage.userCount}명 · 연결 ${s.usage.linkCount}건`;
-  const sb = s.platforms.sellerbricks;
-  document.querySelectorAll('input[name=sbm]').forEach(r => r.checked = r.value === sb.mode);
-  $('#sbBadge').className = 'badge ' + ({MOCK:'b-mock',LIVE:'b-live',OFF:'b-off'}[sb.mode]); $('#sbBadge').textContent = {MOCK:'가짜 데이터',LIVE:'실제 API',OFF:'꺼짐'}[sb.mode];
-  $('#sbUrl').value = sb.baseUrl || ''; $('#sbKeyCur').textContent = sb.signingKey ? `(현재 ${sb.signingKey})` : '(미입력)';
-  $('#skillPath').value = s.kakao.skillPath; $('#skillExample').textContent = s.kakao.exampleUrl;
-  $('#mockSeller').innerHTML = s.mockSellers.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
-  $('#tools').innerHTML = `<table><tr><th>이름</th><th>설명</th></tr>${s.tools.map(t => `<tr><td><b>${esc(t.title)}</b><div class="mono">${esc(t.name)}</div></td><td>${esc(t.description)}</td></tr>`).join('')}</table>`;
-}
-
-async function refresh(){ STATE = await api('/admin/api/state'); render(); }
-
-async function saveKey(name){
-  const input = $('#key-'+name+' [data-k=input]'); const msg = $('#key-'+name+' [data-k=msg]');
-  msg.textContent = '저장하고 연결 테스트 중…';
-  try { const r = await api('/admin/api/keys/'+name, { body: { key: input.value } }); input.value=''; await refresh(); msg.textContent = r.test.status==='OK' ? '✅ 저장 완료 · 연결 성공' : '⚠️ 저장했지만 연결 실패: ' + r.test.message; }
-  catch(e){ msg.textContent = '❌ ' + e.message; }
-}
-async function testKey(name){
-  const msg = $('#key-'+name+' [data-k=msg]'); msg.textContent = '연결 테스트 중…';
-  try { const r = await api('/admin/api/keys/'+name+'/test', { body: {} }); await refresh(); msg.textContent = (r.test.status==='OK'?'✅ ':'❌ ') + r.test.message; } catch(e){ msg.textContent = '❌ ' + e.message; }
-}
-async function delKey(name){ if(!confirm('저장된 키를 삭제할까요? (.env 에 넣은 키는 .env 에서 지워야 합니다)')) return; await api('/admin/api/keys/'+name, { method:'DELETE' }); refresh(); }
-
-async function saveLlm(){
-  const provider = (document.querySelector('input[name=prov]:checked')||{}).value;
-  try { await api('/admin/api/llm', { body: { provider, claudeModel: $('#claudeModel').value, gptModel: $('#gptModel').value, monthlyLimit: Number($('#monthlyLimit').value) } }); await refresh(); $('#llmMsg').textContent = '✅ 저장됨'; }
-  catch(e){ $('#llmMsg').textContent = '❌ ' + e.message; }
-  setTimeout(() => $('#llmMsg').textContent = '', 3000);
-}
-
-async function savePlatform(p){
-  const mode = (document.querySelector('input[name=sbm]:checked')||{}).value;
-  try { await api('/admin/api/platform/'+p, { body: { mode, baseUrl: $('#sbUrl').value, signingKey: $('#sbKey').value } }); $('#sbKey').value=''; await refresh(); $('#sbMsg').textContent='✅ 저장됨'; }
-  catch(e){ $('#sbMsg').textContent = '❌ ' + e.message; }
-}
-
-async function issueCode(){
-  const r = await api('/admin/api/mock/link-code', { body: { accountId: $('#mockSeller').value } });
-  $('#codeOut').innerHTML = `<div class="codebox">${r.code}</div><div class="muted">${esc(r.accountName)} · ${new Date(r.expiresAt).toLocaleTimeString('ko-KR')} 까지 (5분)</div><button style="margin-top:6px" onclick="sendText('연결 ${r.code}')">채팅으로 "연결 ${r.code}" 보내기</button>`;
-}
-
-const SAMPLES = ['오늘 주문 정리해줘','어제 방송 주문 몇 건이야?','입금 안 된 주문 알려줘','송장 안 넣은 주문','취소 요청 어떻게 됐어?','이번 달 정산 얼마야?','이번 주 많이 팔린 상품','품절 임박 상품','3번 상품 뭐였지?','연결 상태','도움말'];
-function addMsg(cls, html){ const d = document.createElement('div'); d.className = cls; d.innerHTML = html; $('#chat').appendChild(d); $('#chat').scrollTop = 1e9; return d; }
-function clearChat(){ $('#chat').innerHTML=''; }
-async function send(){ const t = $('#chatInput').value.trim(); if(!t) return; $('#chatInput').value=''; sendText(t); }
-async function sendText(text){
-  addMsg('msg me', esc(text));
-  const wait = addMsg('msg bot', '…');
-  try {
-    const { reply, kakao } = await api('/admin/api/chat', { body: { botUserKey: $('#testUser').value, text } });
-    wait.innerHTML = esc(reply.text);
-    if (reply.card && reply.card.items.length) {
-      addMsg('lcard', `<div class="hd">${esc(reply.card.title)}</div>${reply.card.items.map(i => `<div class="it"><b>${esc(i.title)}</b><span>${esc(i.description)}</span></div>`).join('')}${reply.card.button?`<a href="${esc(reply.card.button.url)}" target="_blank" rel="noopener">${esc(reply.card.button.label)}</a>`:''}`);
-    }
-    const tools = reply.toolLogs.map(l => l.tool + (l.ok?'':'(실패)')).join(', ');
-    addMsg('meta', `${reply.provider}${reply.model?' · '+esc(reply.model):''} · ${reply.latencyMs}ms${tools?' · 도구: '+esc(tools):''}${reply.error?' · ⚠ AI 오류로 가짜 응답 대체':''}`);
-    if (reply.quickReplies && reply.quickReplies.length) {
-      const q = addMsg('qrs', ''); reply.quickReplies.forEach(t => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => sendText(t); q.appendChild(b); });
-    }
-    $('#lastJson').textContent = JSON.stringify(kakao, null, 2);
-  } catch(e){ wait.textContent = '❌ ' + e.message; }
-}
-
-async function loadUsers(){
-  const rows = await api('/admin/api/users');
-  $('#users').innerHTML = rows.length ? `<table><tr><th>사용자 키</th><th>연결</th><th>마지막 대화</th><th></th></tr>${rows.map(u => `<tr><td class="mono">${esc(u.botUserKey)}</td><td>${u.links.map(l => `${l.platform==='SELLERBRICKS'?'셀러브릭스':'스튜디오'}: ${esc(l.accountName)}`).join('<br>') || '<span class="muted">없음</span>'}</td><td>${new Date(u.lastSeenAt).toLocaleString('ko-KR')}</td><td>${u.links.length?`<button class="danger" onclick="unlink('${u.id}')">연결 해제</button>`:''}</td></tr>`).join('')}</table>` : '<p class="muted">아직 사용자가 없습니다.</p>';
-}
-async function unlink(id){ if(!confirm('이 사용자의 연결을 모두 해제할까요?')) return; await api('/admin/api/users/'+id+'/unlink', { body: {} }); loadUsers(); }
-
-async function loadLogs(){
-  const rows = await api('/admin/api/logs?limit=50');
-  $('#logs').innerHTML = rows.length ? `<table><tr><th>시간</th><th>채널</th><th>질문</th><th>답변</th><th>AI</th><th>도구</th><th>ms</th></tr>${rows.map(r => `<tr><td>${new Date(r.createdAt).toLocaleString('ko-KR')}</td><td>${r.channel==='KAKAO'?'카카오':'테스트'}</td><td>${esc(r.userText)}</td><td style="max-width:320px">${esc(r.replyText.slice(0,160))}${r.replyText.length>160?'…':''}${r.error?`<div style="color:var(--bad)">⚠ ${esc(r.error)}</div>`:''}</td><td>${esc(r.provider)}${r.model?`<div class="muted">${esc(r.model)}</div>`:''}${r.tokensIn?`<div class="muted">${r.tokensIn}/${r.tokensOut} tok</div>`:''}</td><td>${r.tools.map(t => `${esc(t.tool)}${t.ok?'':' ❌'}`).join('<br>')}</td><td>${r.latencyMs}</td></tr>`).join('')}</table>` : '<p class="muted">아직 대화가 없습니다.</p>';
-}
-
-function copy(id){ const el = $('#'+id); el.select(); navigator.clipboard?.writeText(el.value); }
-
-async function boot(){
-  try { await refresh(); } catch { return; }
-  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  $('#samples').innerHTML = ''; SAMPLES.forEach(t => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => sendText(t); $('#samples').appendChild(b); });
-  if (!$('#chat').children.length) addMsg('msg bot', '테스트 채팅이에요. 오른쪽에서 가짜 셀러 연결 코드를 발급받아 연결한 뒤 질문해 보세요.');
-  loadUsers(); loadLogs();
-}
-boot();
-</script>
+  </div>
+  <dialog id="fullMessage"><div class="split"><h2>메시지 전체 보기</h2><form method="dialog"><button class="icon-button" aria-label="닫기" data-icon="close"></button></form></div><p id="fullMessageText"></p></dialog>
+  <dialog id="faqEditor">
+    <div class="split"><h2 id="faqEditorTitle">FAQ 편집</h2><button id="closeFaq" class="icon-button" type="button" aria-label="닫기" data-icon="close"></button></div>
+    <form id="faqForm">
+      <input type="hidden" id="faqId">
+      <div class="field"><label for="faqCategory">분류</label><input type="text" id="faqCategory" maxlength="30"></div>
+      <div class="field"><label for="faqQuestion">질문</label><input type="text" id="faqQuestion" maxlength="200" required></div>
+      <div class="field"><label for="faqAnswer">답변</label><textarea id="faqAnswer" maxlength="3000" rows="5" required></textarea></div>
+      <div class="field"><label for="faqKeywords">검색 키워드</label><input type="text" id="faqKeywords" maxlength="300" placeholder="공백으로 구분"></div>
+      <div class="actions form-actions"><button class="primary" type="submit">저장</button><span id="faqEditorMsg" class="muted feedback" role="status"></span></div>
+    </form>
+  </dialog>
+  <div id="appNotice" class="notice" role="status" hidden></div>
 </body>
 </html>
