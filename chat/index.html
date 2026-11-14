@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>AI 셀러 비서 · 셀러브릭스</title>
-  <meta name="description" content="주문·정산·방송·스튜디오를 대화로 확인하는 셀러브릭스 AI 셀러 비서">
+  <meta name="description" content="주문·정산·방송·스토리지 마켓 예약을 대화로 확인하는 셀러브릭스 AI 셀러 비서">
   <meta name="theme-color" content="#17634c">
   <meta name="robots" content="noindex">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="셀러브릭스">
   <meta property="og:title" content="AI 셀러 비서 | 셀러의 하루, 대화로 정리하다">
-  <meta property="og:description" content="주문·정산·방송·스튜디오를 대화로 확인하세요">
+  <meta property="og:description" content="주문·정산·방송·스토리지 마켓 예약을 대화로 확인하세요">
   <meta property="og:image" content="https://nan29077.github.io/sellerbricks-bot/assets/share-card.jpg">
   <link rel="icon" href="/sellerbricks-bot/assets/app-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/sellerbricks-bot/assets/apple-touch-icon.png">
@@ -36,7 +36,7 @@
           <form hidden id="loginForm" class="login-form" novalidate>
             <div class="segment" id="platformSeg" role="radiogroup" aria-label="연결할 서비스">
               <button type="button" role="radio" aria-checked="true" data-platform="SELLERBRICKS">셀러브릭스</button>
-              <button type="button" role="radio" aria-checked="false" data-platform="STUDIO">스튜디오</button>
+              <button type="button" role="radio" aria-checked="false" data-platform="STUDIO">스토리지 마켓</button>
             </div>
             <label class="otp-label" for="otp0">연결 코드 6자리</label>
             <div class="otp" id="otp">
@@ -76,6 +76,9 @@
     </aside>
     <div class="chat-main">
     <header class="topbar">
+      <a class="icon-btn chat-back" href="/sellerbricks-bot/" aria-label="시작 페이지로 돌아가기">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
+      </a>
       <div class="who">
         <img class="avatar" src="/sellerbricks-bot/assets/app-icon.svg" alt="" width="36" height="36">
         <div>
@@ -111,12 +114,14 @@
       </div>
       <form class="composer" id="composer">
         <button class="icon-btn attach-btn" id="attachButton" type="button" aria-label="사진 첨부">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10.5" r="1.6"/><path d="m21 16-5-5-8 8"/></svg>
+          <svg class="attach-photo" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10.5" r="1.6"/><path d="m21 16-5-5-8 8"/></svg>
+          <svg class="attach-plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
         </button>
         <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
         <textarea id="input" rows="1" maxlength="500" placeholder="메시지를 입력하세요" aria-label="메시지 입력" enterkeyhint="send"></textarea>
         <button class="send-btn" id="sendButton" type="submit" aria-label="보내기" disabled>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+          <span class="send-label" aria-hidden="true">전송</span>
         </button>
       </form>
       <p class="disclaimer">GitHub 미리보기 · 표시되는 주문과 정산은 샘플입니다.</p>
